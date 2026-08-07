@@ -1,0 +1,1 @@
+export { Industrias } from './Industrias';

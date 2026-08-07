@@ -1,0 +1,137 @@
+.config {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 640px;
+}
+
+.config__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.config__title {
+  font-size: var(--fs-xl);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-text-primary);
+}
+
+/* ── Section ── */
+.config__section {
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+}
+
+.config__section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.config__section-body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Setting item ── */
+.config__setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 120ms ease;
+}
+.config__setting:last-child {
+  border-bottom: none;
+}
+.config__setting--clickable {
+  cursor: pointer;
+}
+.config__setting--clickable:hover {
+  background: var(--color-bg-surface-alt);
+}
+
+.config__setting-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.config__setting-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+.config__setting-title--danger {
+  color: var(--color-danger);
+}
+
+.config__setting-sub {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+
+/* ── Toggle switch ── */
+.config__toggle {
+  width: 44px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--color-border-strong);
+  position: relative;
+  cursor: pointer;
+  transition: background-color 200ms ease;
+  flex-shrink: 0;
+}
+.config__toggle--on {
+  background: var(--color-info);
+}
+
+.config__toggle-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: #fff;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 200ms ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.config__toggle--on .config__toggle-thumb {
+  transform: translateX(20px);
+}
+
+/* ── Arrow ── */
+.config__arrow {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+.config__arrow--danger {
+  color: var(--color-danger);
+}
+
+/* ── Export desc ── */
+.config__export-desc {
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .config {
+    max-width: 100%;
+  }
+}

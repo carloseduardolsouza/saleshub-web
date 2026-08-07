@@ -1,0 +1,290 @@
+/* ── Product Selection Modal ── */
+.modal-container--xl {
+  max-width: 800px;
+}
+
+.ps-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-height: 65vh;
+}
+
+/* ── Search ── */
+.ps-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+}
+.ps-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: var(--fs-sm);
+  color: var(--color-text-primary);
+  outline: none;
+}
+.ps-search input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* ── Industrias filter ── */
+.ps-industrias {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.ps-industrias__label {
+  font-size: var(--fs-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+.ps-industrias__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ps-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.ps-chip:hover {
+  background: var(--color-bg-surface-alt);
+}
+.ps-chip--selected {
+  background: var(--color-info);
+  color: var(--color-text-inverse);
+  border-color: var(--color-primary);
+}
+
+/* ── Product list ── */
+.ps-produtos-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.ps-produto-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color 120ms ease;
+}
+.ps-produto-card:hover {
+  border-color: var(--color-accent);
+}
+
+.ps-produto-img {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.ps-produto-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ps-produto-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ps-produto-nome {
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+.ps-produto-industria {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+.ps-produto-preco {
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-info);
+}
+.ps-produto-variacoes {
+  font-size: var(--fs-xs);
+  color: var(--color-warning);
+  font-weight: var(--font-weight-medium);
+}
+
+.ps-produto-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--color-success);
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+  flex-shrink: 0;
+}
+.ps-produto-add:hover {
+  background: #1a7a42;
+}
+
+.ps-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-10);
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  font-style: italic;
+}
+
+/* ── Footer ── */
+.ps-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-6);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+/* ── Variation modal ── */
+.ps-variation-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--color-bg-base);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  width: 90%;
+  max-width: 400px;
+  z-index: 10001;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.ps-variation-title {
+  font-size: var(--fs-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.ps-variation-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-md);
+}
+.ps-variation-preview__img {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-alt);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.ps-variation-preview__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ps-variation-preview__name {
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  display: block;
+}
+.ps-variation-preview__price {
+  font-size: var(--fs-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-info);
+  display: block;
+}
+
+.ps-variation-label {
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.ps-variation-select {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: var(--fs-sm);
+  outline: none;
+}
+.ps-variation-select:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.35);
+}
+
+.ps-variation-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+.ps-variation-actions button {
+  flex: 1;
+}
+
+@media (max-width: 768px) {
+  .modal-container--xl {
+    max-width: 100%;
+    margin: var(--space-4);
+  }
+  .ps-produto-card {
+    flex-wrap: wrap;
+  }
+  .ps-produto-img {
+    width: 48px;
+    height: 48px;
+  }
+}

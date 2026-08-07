@@ -1,0 +1,283 @@
+/* ══════════════════════════════════════
+   CustomTable — UX/UI Redesenhado
+   ══════════════════════════════════════ */
+
+/* ── Wrapper ── */
+.ct-wrapper {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-base);
+  box-shadow: var(--shadow-xs);
+}
+
+/* ── Table base ── */
+.ct {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  table-layout: fixed;
+}
+
+/* ── Header ── */
+.ct thead th {
+  text-align: left;
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--fs-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.ct__thead--sticky thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.ct__th-content {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ct__th--sortable {
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+.ct__th--sortable:hover {
+  color: var(--color-text-primary);
+}
+
+.ct__sort-icon {
+  display: inline-flex;
+  opacity: 0.35;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+.ct__sort-icon--active {
+  opacity: 1;
+  color: var(--color-accent);
+}
+
+.ct__th--center {
+  text-align: center;
+}
+.ct__th--right {
+  text-align: right;
+}
+
+/* ── Body ── */
+.ct tbody td {
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  vertical-align: middle;
+  transition: background-color 120ms ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.ct--compact tbody td {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--fs-xs);
+}
+
+.ct__td--center {
+  text-align: center;
+}
+.ct__td--right {
+  text-align: right;
+}
+.ct__td--muted {
+  color: var(--color-text-muted);
+}
+
+/* ── Row hover & click ── */
+.ct__row {
+  transition: background-color 150ms ease;
+}
+.ct__row:hover {
+  background: var(--color-info-bg);
+}
+.ct__row--clickable {
+  cursor: pointer;
+}
+.ct__row--clickable:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+.ct__row--clickable:active {
+  background: var(--color-bg-surface-alt);
+}
+
+/* ── Actions ── */
+.ct-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-base);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+  flex-shrink: 0;
+}
+.icon-btn:hover {
+  background: var(--color-bg-surface-alt);
+  color: var(--color-text-primary);
+}
+.icon-btn--xs {
+  width: 26px;
+  height: 26px;
+}
+.icon-btn--danger:hover {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+/* ── Alternating rows (subtle) ── */
+.ct tbody tr:not(.ct__skeleton-row):nth-child(even) {
+  background: var(--color-bg-surface);
+}
+.ct tbody tr:not(.ct__skeleton-row):nth-child(even):hover {
+  background: var(--color-info-bg);
+}
+
+/* ── Empty state ── */
+.ct__empty {
+  text-align: center;
+  padding: var(--space-10) var(--space-5) !important;
+}
+
+.ct__empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.ct__empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-alt);
+  color: var(--color-text-muted);
+}
+
+.ct__empty-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.ct__empty-description {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  max-width: 280px;
+}
+
+/* ── Skeleton loading ── */
+.ct__skeleton-row {
+  pointer-events: none;
+}
+.ct__skeleton-row td {
+  padding: var(--space-4) var(--space-5) !important;
+}
+
+.ct__skeleton {
+  height: 14px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-surface-alt) 25%,
+    var(--color-bg-surface) 50%,
+    var(--color-bg-surface-alt) 75%
+  );
+  background-size: 200% 100%;
+  animation: ct-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes ct-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Badge (utility for status) ── */
+.ct-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-3);
+  font-size: var(--fs-xs);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.ct-badge--success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+.ct-badge--warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+.ct-badge--danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+.ct-badge--info {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+.ct-badge--neutral {
+  background: var(--color-bg-surface-alt);
+  color: var(--color-text-secondary);
+}
+
+.ct-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .ct thead th,
+  .ct tbody td {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--fs-xs);
+  }
+
+  .ct-badge {
+    font-size: 10px;
+    padding: 1px var(--space-2);
+  }
+}

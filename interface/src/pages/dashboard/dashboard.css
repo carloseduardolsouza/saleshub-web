@@ -1,0 +1,212 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+
+.dashboard__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard__title {
+  font-size: var(--fs-xl);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-text-primary);
+}
+
+.dashboard__subtitle {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+/* ── Metrics ── */
+.dashboard__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.metric-card {
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid;
+  border-radius: var(--radius-lg);
+  padding: var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.metric-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.metric-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.metric-card__change {
+  font-size: var(--fs-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-success);
+}
+
+.metric-card__value {
+  font-size: var(--fs-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-card__label {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ── Grid ── */
+.dashboard__grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: var(--space-7);
+}
+
+.dashboard__card {
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+}
+
+.dashboard__card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-5);
+}
+
+.dashboard__card-title {
+  font-size: var(--fs-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.dashboard__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-accent);
+}
+.dashboard__link:hover {
+  color: var(--color-accent-hover);
+}
+
+/* ── Orders ── */
+.dashboard__orders {
+  display: flex;
+  flex-direction: column;
+}
+
+.order-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.order-row:last-child {
+  border-bottom: none;
+}
+
+.order-row__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.order-row__id {
+  font-family: var(--font-family-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  min-width: 42px;
+}
+
+.order-row__client {
+  font-size: var(--fs-sm);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.order-row__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.order-row__total {
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.order-row__time {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* ── Actions ── */
+.dashboard__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-7) var(--space-4);
+  border-radius: var(--radius-lg);
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  text-align: center;
+}
+
+.action-btn--primary { background: var(--color-primary); }
+.action-btn--success { background: var(--color-success); }
+.action-btn--accent { background: var(--color-accent); color: var(--color-accent-contrast); }
+.action-btn--info { background: var(--color-info); }
+
+.action-btn:hover {
+  filter: brightness(0.9);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .dashboard__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard__metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+}
