@@ -3,6 +3,7 @@ import { X, UserPlus, Plus, Trash2 } from 'lucide-react';
 import { CustomInput } from '../../components/custom-input';
 import { CustomButton } from '../../components/custom-button';
 import { ModalPortal } from '../../components/modal-portal';
+import { api } from '../../api/client';
 import './NewClienteModal.css';
 
 interface Contato {
@@ -26,6 +27,8 @@ export function NewClienteModal({ open, onClose }: NewClienteModalProps) {
     cpfCnpj: '',
     inscricaoEstadual: '',
     dataNascimento: '',
+    telefoneEmpresa: '',
+    emailEmpresa: '',
     endereco: '',
     cidade: '',
     estado: '',
@@ -53,15 +56,34 @@ export function NewClienteModal({ open, onClose }: NewClienteModalProps) {
     setContatos((prev) => prev.map((c) => (c.id === id ? { ...c, [field]: value } : c)));
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.nomeFantasia.trim()) {
       alert('Nome Fantasia e obrigatorio!');
       return;
     }
-    alert(`Cliente cadastrado!\nNome: ${form.nomeFantasia}\nContatos: ${contatos.length}`);
-    onClose();
-    setForm({ nomeFantasia: '', razaoSocial: '', cpfCnpj: '', inscricaoEstadual: '', dataNascimento: '', endereco: '', cidade: '', estado: '', cep: '', observacoes: '' });
-    setContatos([]);
+
+    try {
+      await api.clientes.create({
+        nomeFantasia: form.nomeFantasia,
+        razaoSocial: form.razaoSocial || undefined,
+        cnpj: form.cpfCnpj || undefined,
+        inscricaoEstadual: form.inscricaoEstadual || undefined,
+        dataNascimento: form.dataNascimento || undefined,
+        telefoneEmpresa: form.telefoneEmpresa || undefined,
+        emailEmpresa: form.emailEmpresa || undefined,
+        enderecoLogradouro: form.endereco || undefined,
+        enderecoCidade: form.cidade || undefined,
+        enderecoEstado: form.estado || undefined,
+        enderecoCep: form.cep || undefined,
+        observacoes: form.observacoes || undefined,
+        contatos: contatos.length > 0 ? JSON.stringify(contatos) : undefined,
+      });
+      onClose();
+      setForm({ nomeFantasia: '', razaoSocial: '', cpfCnpj: '', inscricaoEstadual: '', dataNascimento: '', telefoneEmpresa: '', emailEmpresa: '', endereco: '', cidade: '', estado: '', cep: '', observacoes: '' });
+      setContatos([]);
+    } catch {
+      alert('Erro ao cadastrar cliente');
+    }
   }
 
   return (
@@ -113,6 +135,25 @@ export function NewClienteModal({ open, onClose }: NewClienteModalProps) {
                   type="date"
                   value={form.dataNascimento}
                   onChange={(e) => updateField('dataNascimento', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="form-section">
+              <h3 className="form-section__title">Dados da Empresa</h3>
+              <div className="form-grid form-grid--2">
+                <CustomInput
+                  label="Telefone Empresa"
+                  value={form.telefoneEmpresa}
+                  onChange={(e) => updateField('telefoneEmpresa', e.target.value)}
+                  placeholder="(11) 3333-4444"
+                />
+                <CustomInput
+                  label="Email Empresa"
+                  type="email"
+                  value={form.emailEmpresa}
+                  onChange={(e) => updateField('emailEmpresa', e.target.value)}
+                  placeholder="contato@empresa.com"
                 />
               </div>
             </div>

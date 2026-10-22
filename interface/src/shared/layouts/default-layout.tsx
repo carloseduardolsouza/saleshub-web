@@ -6,7 +6,11 @@ import { Header } from '../header';
 import { Footer } from '../footer';
 import './default-layout.css';
 
-export function DefaultLayout() {
+interface DefaultLayoutProps {
+  onLogout?: () => void;
+}
+
+export function DefaultLayout({ onLogout }: DefaultLayoutProps) {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
   });
@@ -66,6 +70,7 @@ export function DefaultLayout() {
           theme={theme}
           onToggleTheme={toggleTheme}
           onToggleMobileMenu={toggleMobileMenu}
+          onLogout={onLogout}
         />
         <main className="layout__content">
           <Outlet />

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Package, Plus, Trash2 } from 'lucide-react';
 import { CustomInput } from '../../components/custom-input';
-import { CustomSelect } from '../../components/custom-select';
 import { CustomButton } from '../../components/custom-button';
 import { ModalPortal } from '../../components/modal-portal';
+import { api } from '../../api/client';
 import './NewProdutoModal.css';
 
 interface Variacao {
@@ -16,16 +16,8 @@ interface NewProdutoModalProps {
   onClose: () => void;
 }
 
-const INDUSTRIAS_OPTIONS = [
-  { value: 'Dell', label: 'Dell' },
-  { value: 'Apple', label: 'Apple' },
-  { value: 'Samsung', label: 'Samsung' },
-  { value: 'Logitech', label: 'Logitech' },
-  { value: 'Keychron', label: 'Keychron' },
-  { value: 'LG', label: 'LG' },
-];
-
 export function NewProdutoModal({ open, onClose }: NewProdutoModalProps) {
+  const [industrias, setIndustrias] = useState<{ id: number; nome: string }[]>([]);
   const [form, setForm] = useState({
     nome: '',
     preco: '',
@@ -34,6 +26,12 @@ export function NewProdutoModal({ open, onClose }: NewProdutoModalProps) {
   });
   const [variacoes, setVariacoes] = useState<Variacao[]>([]);
   const [novaVariacao, setNovaVariacao] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      api.industrias.getAll().then((i) => setIndustrias(i.map((ind) => ({ id: ind.id!, nome: ind.nome }))));
+    }
+  }, [open]);
 
   if (!open) return null;
 
@@ -55,13 +53,24 @@ export function NewProdutoModal({ open, onClose }: NewProdutoModalProps) {
     setVariacoes((prev) => prev.map((v, i) => (i === index ? { ...v, [field]: value } : v)));
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.nome.trim() || !form.preco || !form.industria) {
       alert('Nome, Preco e Industria sao obrigatorios!');
       return;
     }
-    alert(`Produto cadastrado!\nNome: ${form.nome}\nPreco: R$ ${form.preco}`);
-    onClose();
+
+    try {
+      await api.produtos.create({
+        nome: form.nome,
+        preco: parseFloat(form.preco),
+        industria: form.industria,
+        descricao: form.descricao || undefined,
+        variacoes: variacoes.map((v) => ({ tipo: 'cor', valor: v.nome })),
+      });
+      onClose();
+    } catch {
+      alert('Erro ao cadastrar produto');
+    }
   }
 
   return (
@@ -93,13 +102,19 @@ export function NewProdutoModal({ open, onClose }: NewProdutoModalProps) {
                   onChange={(e) => updateField('preco', e.target.value)}
                   placeholder="0,00"
                 />
-                <CustomSelect
-                  label="Industria *"
-                  options={INDUSTRIAS_OPTIONS}
-                  value={form.industria}
-                  onChange={(e) => updateField('industria', e.target.value)}
-                  placeholder="Selecione"
-                />
+                <div className="form-group">
+                  <label className="form-label">Industria *</label>
+                  <select
+                    className="form-select"
+                    value={form.industria}
+                    onChange={(e) => updateField('industria', e.target.value)}
+                  >
+                    <option value="">Selecione</option>
+                    {industrias.map((ind) => (
+                      <option key={ind.id} value={ind.nome}>{ind.nome}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 

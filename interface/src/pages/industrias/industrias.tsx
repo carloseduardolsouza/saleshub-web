@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit2, Trash2, Building, Phone, Mail, Filter, Check } from 'lucide-react';
 import { CustomButton } from '../../components/custom-button';
 import { CustomInput } from '../../components/custom-input';
@@ -6,19 +6,9 @@ import { CustomTable, type TableColumn } from '../../components/custom-table';
 import { NewIndustriaModal } from './NewIndustriaModal';
 import { EditIndustriaModal } from './EditIndustriaModal';
 import { DetailsIndustriaModal } from './DetailsIndustriaModal';
+import { api, type Industria } from '../../api/client';
 import '../../styles/modal.css';
 import './Industrias.css';
-
-interface Industria {
-  id: string;
-  cnpj: string;
-  nome: string;
-  telefoneComercial: string;
-  telefoneAssistencia: string;
-  email: string;
-  dataCadastro: string;
-  dataEdicao?: string;
-}
 
 const AVAILABLE_FIELDS = [
   { key: 'nome', label: 'Nome da Industria' },
@@ -27,15 +17,6 @@ const AVAILABLE_FIELDS = [
   { key: 'telefoneAssistencia', label: 'Telefone Assistencia' },
   { key: 'email', label: 'Email' },
 ] as const;
-
-const MOCK_INDUSTRIAS: Industria[] = [
-  { id: '1', cnpj: '11.222.333/0001-44', nome: 'Samsung Electronics', telefoneComercial: '(11) 3456-7890', telefoneAssistencia: '(11) 3456-7891', email: 'contato@samsung.com.br', dataCadastro: '10/01/2026' },
-  { id: '2', cnpj: '22.333.444/0001-55', nome: 'Apple Inc.', telefoneComercial: '(11) 2345-6789', telefoneAssistencia: '', email: 'suporte@apple.com.br', dataCadastro: '15/02/2026' },
-  { id: '3', cnpj: '33.444.555/0001-66', nome: 'LG Electronics', telefoneComercial: '(11) 4567-8901', telefoneAssistencia: '(11) 4567-8902', email: 'contato@lg.com.br', dataCadastro: '01/03/2026' },
-  { id: '4', cnpj: '44.555.666/0001-77', nome: 'Sony Mobile', telefoneComercial: '(11) 5678-9012', telefoneAssistencia: '', email: 'vendas@sony.com.br', dataCadastro: '20/04/2026' },
-  { id: '5', cnpj: '55.666.777/0001-88', nome: 'Motorola Mobility', telefoneComercial: '(11) 6789-0123', telefoneAssistencia: '(11) 6789-0124', email: 'contato@motorola.com.br', dataCadastro: '05/05/2026' },
-  { id: '6', cnpj: '66.777.888/0001-99', nome: 'Xiaomi Technology', telefoneComercial: '(11) 7890-1234', telefoneAssistencia: '', email: 'suporte@xiaomi.com.br', dataCadastro: '01/06/2026' },
-];
 
 function renderField(value: string | undefined, fieldKey: string): React.ReactNode {
   if (!value) return <span className="ct-td--muted">-</span>;
@@ -50,6 +31,8 @@ function renderField(value: string | undefined, fieldKey: string): React.ReactNo
 }
 
 export function Industrias() {
+  const [industrias, setIndustrias] = useState<Industria[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedFields, setSelectedFields] = useState<string[]>(['nome', 'cnpj', 'telefoneComercial']);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -58,12 +41,26 @@ export function Industrias() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedIndustria, setSelectedIndustria] = useState<Industria | null>(null);
 
+  async function loadData() {
+    try {
+      const data = await api.industrias.getAll();
+      setIndustrias(data);
+    } catch {
+      console.error('Erro ao carregar industrias');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadData(); }, []);
+
   function isCNPJ(text: string): boolean {
     const cleanText = text.replace(/\D/g, '');
     return cleanText.length >= 11 && /^\d+$/.test(cleanText);
   }
 
-  const filtered = MOCK_INDUSTRIAS.filter((industria) => {
+  const filtered = industrias.filter((industria) => {
     if (!search.trim()) return true;
     const searchLower = search.toLowerCase().trim();
     if (isCNPJ(search)) {
@@ -95,9 +92,14 @@ export function Industrias() {
     setShowEditModal(true);
   }
 
-  function handleDelete(industria: Industria) {
-    if (window.confirm(`Tem certeza que deseja excluir "${industria.nome}"?`)) {
-      alert(`Industria "${industria.nome}" excluida com sucesso!`);
+  async function handleDelete(industria: Industria) {
+    if (!window.confirm(`Tem certeza que deseja excluir "${industria.nome}"?`)) return;
+    try {
+      await api.industrias.delete(industria.id!);
+      setIndustrias((prev) => prev.filter((i) => i.id !== industria.id));
+      setShowDetailsModal(false);
+    } catch {
+      alert('Erro ao excluir industria');
     }
   }
 
@@ -134,6 +136,10 @@ export function Industrias() {
     ];
   }, [selectedFields]);
 
+  if (loading) {
+    return <div className="industrias"><p>Carregando...</p></div>;
+  }
+
   return (
     <div className="industrias">
       <div className="industrias__header">
@@ -162,8 +168,8 @@ export function Industrias() {
 
       <CustomTable<Industria>
         columns={columns}
-        data={filtered as unknown as Record<string, unknown>[]}
-        rowKey={(row) => row.id}
+        data={filtered}
+        rowKey={(row) => row.id!}
         emptyTitle="Nenhuma industria encontrada"
         emptyDescription='Clique em "Nova Industria" para cadastrar'
         emptyIcon={<Building size={40} />}
@@ -198,8 +204,8 @@ export function Industrias() {
         </div>
       )}
 
-      <NewIndustriaModal open={showNewModal} onClose={() => setShowNewModal(false)} />
-      <EditIndustriaModal open={showEditModal} industria={selectedIndustria} onClose={() => setShowEditModal(false)} />
+      <NewIndustriaModal open={showNewModal} onClose={() => { setShowNewModal(false); loadData(); }} />
+      <EditIndustriaModal open={showEditModal} industria={selectedIndustria} onClose={() => { setShowEditModal(false); loadData(); }} />
       <DetailsIndustriaModal
         open={showDetailsModal}
         industria={selectedIndustria}

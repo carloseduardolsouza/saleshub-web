@@ -1,52 +1,51 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit2, Trash2, Eye, Package, Filter, X } from 'lucide-react';
 import { CustomButton } from '../../components/custom-button';
 import { CustomInput } from '../../components/custom-input';
 import { NewProdutoModal } from './NewProdutoModal';
+import { EditProdutoModal } from './EditProdutoModal';
+import { api, type Produto } from '../../api/client';
 import '../../styles/modal.css';
 import './Produtos.css';
 
-interface Produto {
-  id: string;
-  nome: string;
-  preco: string;
-  industria: string;
-  estoque: number;
-}
-
-const MOCK_PRODUTOS: Produto[] = [
-  { id: '1', nome: 'Notebook Dell Inspiron', preco: 'R$ 4.299,00', industria: 'Dell', estoque: 12 },
-  { id: '2', nome: 'iPhone 15 Pro Max', preco: 'R$ 9.499,00', industria: 'Apple', estoque: 8 },
-  { id: '3', nome: 'Samsung Galaxy S24', preco: 'R$ 5.899,00', industria: 'Samsung', estoque: 15 },
-  { id: '4', nome: 'Mouse Logitech MX', preco: 'R$ 459,00', industria: 'Logitech', estoque: 30 },
-  { id: '5', nome: 'Teclado Mecanico Keychron', preco: 'R$ 699,00', industria: 'Keychron', estoque: 20 },
-  { id: '6', nome: 'Monitor LG 27"', preco: 'R$ 1.899,00', industria: 'LG', estoque: 6 },
-];
-
-const MOCK_INDUSTRIAS = [
-  { id: '1', nome: 'Dell' },
-  { id: '2', nome: 'Apple' },
-  { id: '3', nome: 'Samsung' },
-  { id: '4', nome: 'Logitech' },
-  { id: '5', nome: 'Keychron' },
-  { id: '6', nome: 'LG' },
-];
-
 export function Produtos() {
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [industrias, setIndustrias] = useState<{ id: number; nome: string }[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedIndustria, setSelectedIndustria] = useState<string | null>(null);
   const [showNewProduto, setShowNewProduto] = useState(false);
+  const [showEditProduto, setShowEditProduto] = useState(false);
+  const [selectedProduto, setSelectedProduto] = useState<Produto | null>(null);
+
+  async function loadData() {
+    try {
+      const [prodData, indData] = await Promise.all([
+        api.produtos.getAll(),
+        api.industrias.getAll(),
+      ]);
+      setProdutos(prodData);
+      setIndustrias(indData.map((ind) => ({ id: ind.id!, nome: ind.nome })));
+    } catch {
+      console.error('Erro ao carregar dados');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadData(); }, []);
 
   const productCount = useMemo(() => {
     const byIndustry: Record<string, number> = {};
-    MOCK_PRODUTOS.forEach((p) => {
+    produtos.forEach((p) => {
       byIndustry[p.industria] = (byIndustry[p.industria] || 0) + 1;
     });
-    return { total: MOCK_PRODUTOS.length, byIndustry };
-  }, []);
+    return { total: produtos.length, byIndustry };
+  }, [produtos]);
 
   const filtered = useMemo(() => {
-    let result = MOCK_PRODUTOS;
+    let result = produtos;
     if (selectedIndustria) {
       result = result.filter((p) => p.industria === selectedIndustria);
     }
@@ -59,13 +58,36 @@ export function Produtos() {
       );
     }
     return result;
-  }, [search, selectedIndustria]);
+  }, [produtos, search, selectedIndustria]);
 
   const hasActiveFilters = search || selectedIndustria;
 
   function handleClearFilters() {
     setSearch('');
     setSelectedIndustria(null);
+  }
+
+  function handleEditProduto(produto: Produto) {
+    setSelectedProduto(produto);
+    setShowEditProduto(true);
+  }
+
+  async function handleDelete(id: number) {
+    if (!window.confirm('Tem certeza que deseja excluir este produto?')) return;
+    try {
+      await api.produtos.delete(id);
+      setProdutos((prev) => prev.filter((p) => p.id !== id));
+    } catch {
+      alert('Erro ao excluir produto');
+    }
+  }
+
+  function formatPrice(preco: number) {
+    return `R$ ${preco.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  }
+
+  if (loading) {
+    return <div className="produtos"><p>Carregando...</p></div>;
   }
 
   return (
@@ -105,7 +127,7 @@ export function Produtos() {
             Todas ({productCount.total})
           </button>
 
-          {MOCK_INDUSTRIAS.map((ind) => {
+          {industrias.map((ind) => {
             const count = productCount.byIndustry[ind.nome] || 0;
             const isSelected = selectedIndustria === ind.nome;
             return (
@@ -124,7 +146,7 @@ export function Produtos() {
       <div className="produtos__counter">
         {selectedIndustria
           ? `${filtered.length} produto(s) - ${selectedIndustria}`
-          : `Total: ${MOCK_PRODUTOS.length} produto(s)`}
+          : `Total: ${produtos.length} produto(s)`}
       </div>
 
       <div className="produtos__grid">
@@ -148,21 +170,21 @@ export function Produtos() {
                 <h3 className="product-card__name">{produto.nome}</h3>
                 <span className="product-card__industry">{produto.industria}</span>
                 <div className="product-card__footer">
-                  <span className="product-card__price">{produto.preco}</span>
-                  <span className="product-card__stock">{produto.estoque} em estoque</span>
+                  <span className="product-card__price">{formatPrice(produto.preco)}</span>
                 </div>
               </div>
               <div className="product-card__actions">
                 <button className="icon-btn" title="Detalhes"><Eye size={15} /></button>
-                <button className="icon-btn" title="Editar"><Edit2 size={15} /></button>
-                <button className="icon-btn icon-btn--danger" title="Excluir"><Trash2 size={15} /></button>
+                <button className="icon-btn" title="Editar" onClick={() => handleEditProduto(produto)}><Edit2 size={15} /></button>
+                <button className="icon-btn icon-btn--danger" title="Excluir" onClick={() => handleDelete(produto.id!)}><Trash2 size={15} /></button>
               </div>
             </div>
           ))
         )}
       </div>
 
-      <NewProdutoModal open={showNewProduto} onClose={() => setShowNewProduto(false)} />
+      <NewProdutoModal open={showNewProduto} onClose={() => { setShowNewProduto(false); loadData(); }} />
+      <EditProdutoModal open={showEditProduto} produto={selectedProduto} onClose={() => { setShowEditProduto(false); setSelectedProduto(null); loadData(); }} />
     </div>
   );
 }

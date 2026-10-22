@@ -3,6 +3,7 @@ import { X, Building } from 'lucide-react';
 import { CustomInput } from '../../components/custom-input';
 import { CustomButton } from '../../components/custom-button';
 import { ModalPortal } from '../../components/modal-portal';
+import { api } from '../../api/client';
 
 interface NewIndustriaModalProps {
   open: boolean;
@@ -24,7 +25,7 @@ export function NewIndustriaModal({ open, onClose }: NewIndustriaModalProps) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.cnpj.trim()) {
       alert('CNPJ e obrigatorio!');
       return;
@@ -42,9 +43,14 @@ export function NewIndustriaModal({ open, onClose }: NewIndustriaModalProps) {
       alert('Email invalido!');
       return;
     }
-    alert(`Industria cadastrada!\nNome: ${form.nome}`);
-    onClose();
-    setForm({ cnpj: '', nome: '', telefoneComercial: '', telefoneAssistencia: '', email: '' });
+
+    try {
+      await api.industrias.create(form);
+      onClose();
+      setForm({ cnpj: '', nome: '', telefoneComercial: '', telefoneAssistencia: '', email: '' });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao cadastrar industria');
+    }
   }
 
   return (

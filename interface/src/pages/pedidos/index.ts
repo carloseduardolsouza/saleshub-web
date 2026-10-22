@@ -1,1 +1,1 @@
-export { Pedidos } from './Pedidos';
+export { Pedidos } from './pedidos';

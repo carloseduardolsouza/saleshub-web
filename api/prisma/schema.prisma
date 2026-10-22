@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Cliente {
+  id                 Int       @id @default(autoincrement())
+  cnpj               String?
+  nomeFantasia       String
+  razaoSocial        String?
+  inscricaoEstadual  String?
+  nomeComprador      String?
+  email              String?
+  telefone           String?
+  telefoneEmpresa    String?
+  emailEmpresa       String?
+  dataNascimento     DateTime?
+  enderecoCep        String?
+  enderecoLogradouro String?
+  enderecoNumero     String?
+  enderecoComplemento String?
+  enderecoBairro     String?
+  enderecoCidade     String?
+  enderecoEstado     String?
+  contatos           String?
+  observacoes        String?
+  dataCadastro       DateTime  @default(now())
+  dataAtualizacao    DateTime?
+
+  @@map("clientes")
+}
+
+model Industria {
+  id                  Int       @id @default(autoincrement())
+  cnpj                String    @unique
+  nome                String
+  telefoneComercial   String?
+  telefoneAssistencia String?
+  email               String?
+  dataCadastro        DateTime  @default(now())
+  dataEdicao          DateTime?
+
+  @@map("industrias")
+}
+
+model Produto {
+  id              Int       @id @default(autoincrement())
+  nome            String
+  preco           Float
+  industria       String
+  descricao       String?
+  dataCadastro    DateTime  @default(now())
+  dataAtualizacao DateTime?
+
+  imagens   ProdutoImagem[]
+  variacoes ProdutoVariacao[]
+
+  @@map("produtos")
+}
+
+model ProdutoImagem {
+  id        Int    @id @default(autoincrement())
+  produtoId Int
+  imagem    String
+  ordem     Int    @default(0)
+
+  produto Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  @@map("produto_imagens")
+}
+
+model ProdutoVariacao {
+  id        Int    @id @default(autoincrement())
+  produtoId Int
+  tipo      String
+  valor     String
+
+  produto Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  @@map("produto_variacoes")
+}
+
+model Pedido {
+  id              Int       @id @default(autoincrement())
+  cliente         String
+  total           Float
+  descontoTipo    String?   @map("desconto_tipo")
+  descontoValor   String?   @map("desconto_valor")
+  metodoPagamento String    @map("metodo_pagamento")
+  observacoes     String?
+  status          String    @default("pendente")
+  data            DateTime  @default(now())
+
+  produtos PedidoProduto[]
+  prazos   PedidoPrazo[]
+
+  @@map("pedidos")
+}
+
+model PedidoProduto {
+  id             Int     @id @default(autoincrement())
+  pedidoId       Int     @map("pedido_id")
+  produtoId      Int?    @map("produto_id")
+  nome           String
+  preco          Float
+  quantidade     Int
+  descontoTipo   String? @map("desconto_tipo")
+  descontoValor  String? @map("desconto_valor")
+  variacaoTipo   String? @map("variacao_tipo")
+  variacaoValor  String? @map("variacao_valor")
+
+  pedido Pedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  @@map("pedido_produtos")
+}
+
+model PedidoPrazo {
+  id       Int    @id @default(autoincrement())
+  pedidoId Int    @map("pedido_id")
+  dias     String
+
+  pedido Pedido @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  @@map("pedido_prazos")
+}
+
+model Configuracao {
+  chave String @id
+  valor String
+
+  @@map("configuracoes")
+}
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  email     String   @unique
+  senha     String
+  role      String   @default("user")
+  ativo     Boolean  @default(true)
+  dataCriacao DateTime @default(now())
+  dataAtualizacao DateTime?
+
+  @@map("usuarios")
+}

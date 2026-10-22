@@ -1,12 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { X, Plus, ShoppingCart, Minus, Tag, Search, Package } from 'lucide-react';
 import { CustomButton } from '../../components/custom-button';
 import { ModalPortal } from '../../components/modal-portal';
 import { ProductSelectionModal } from './ProductSelectionModal';
+import { api, type Cliente, type Produto, type Industria } from '../../api/client';
 import './NewOrderModal.css';
 
 interface ProductItem {
   id: number;
+  produtoId?: number;
   nome: string;
   quantidade: number;
   preco: number;
@@ -18,25 +20,6 @@ interface NewOrderModalProps {
   onClose: () => void;
 }
 
-const MOCK_CLIENTES = [
-  { id: '1', nomeFantasia: 'Maria Silva', razaoSocial: 'MS LTDA' },
-  { id: '2', nomeFantasia: 'Joao Santos', razaoSocial: 'JS ME' },
-  { id: '3', nomeFantasia: 'Ana Oliveira', razaoSocial: 'AO COMERCIO' },
-  { id: '4', nomeFantasia: 'Carlos Souza', razaoSocial: 'CS REPRESENTACOES' },
-];
-
-const MOCK_PRODUTOS = [
-  { id: '1', nome: 'Notebook Dell', preco: 4299, industria: 'Eletronicos' },
-  { id: '2', nome: 'iPhone 15 Pro', preco: 9499, industria: 'Eletronicos' },
-  { id: '3', nome: 'Mouse Logitech MX', preco: 459, industria: 'Perifericos' },
-  { id: '4', nome: 'Teclado Keychron', preco: 699, industria: 'Perifericos' },
-];
-
-const MOCK_INDUSTRIAS = [
-  { id: '1', nome: 'Eletronicos' },
-  { id: '2', nome: 'Perifericos' },
-];
-
 const METODO_PAGAMENTO = [
   { value: 'dinheiro', label: 'Dinheiro' },
   { value: 'pix', label: 'Pix' },
@@ -44,9 +27,12 @@ const METODO_PAGAMENTO = [
   { value: 'boleto', label: 'Boleto' },
 ];
 
-let nextProductId = 1;
+let nextProdutoId = 1;
 
 export function NewOrderModal({ open, onClose }: NewOrderModalProps) {
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [produtosApi, setProdutosApi] = useState<Produto[]>([]);
+  const [industrias, setIndustrias] = useState<Industria[]>([]);
   const [clienteSearch, setClienteSearch] = useState('');
   const [selectedCliente, setSelectedCliente] = useState('');
   const [produtos, setProdutos] = useState<ProductItem[]>([]);
@@ -57,13 +43,20 @@ export function NewOrderModal({ open, onClose }: NewOrderModalProps) {
   const [editingDiscountIndex, setEditingDiscountIndex] = useState<number | null>(null);
   const [showProductSelection, setShowProductSelection] = useState(false);
 
+  useEffect(() => {
+    if (open) {
+      Promise.all([api.clientes.getAll(), api.produtos.getAll(), api.industrias.getAll()])
+        .then(([c, p, i]) => { setClientes(c); setProdutosApi(p); setIndustrias(i); });
+    }
+  }, [open]);
+
   const filteredClientes = useMemo(() => {
-    if (!clienteSearch.trim()) return MOCK_CLIENTES;
-    return MOCK_CLIENTES.filter((c) =>
+    if (!clienteSearch.trim()) return clientes;
+    return clientes.filter((c) =>
       c.nomeFantasia.toLowerCase().includes(clienteSearch.toLowerCase()) ||
-      c.razaoSocial.toLowerCase().includes(clienteSearch.toLowerCase())
+      (c.razaoSocial && c.razaoSocial.toLowerCase().includes(clienteSearch.toLowerCase()))
     );
-  }, [clienteSearch]);
+  }, [clientes, clienteSearch]);
 
   if (!open) return null;
 
@@ -87,9 +80,10 @@ export function NewOrderModal({ open, onClose }: NewOrderModalProps) {
     : valorDescontoGeral;
   const total = Math.max(0, subtotalComDescontos - descontoGeralValor);
 
-  function handleAddProductFromSelection(product: { id: string; nome: string; preco: number }) {
+  function handleAddProductFromSelection(product: Produto) {
     setProdutos((prev) => [...prev, {
-      id: nextProductId++,
+      id: nextProdutoId++,
+      produtoId: product.id,
       nome: product.nome,
       quantidade: 1,
       preco: product.preco,
@@ -125,7 +119,7 @@ export function NewOrderModal({ open, onClose }: NewOrderModalProps) {
     setPrazos((prev) => prev.map((p, i) => i === index ? { dias: value } : p));
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!selectedCliente) {
       alert('Selecione um cliente!');
       return;
@@ -134,8 +128,29 @@ export function NewOrderModal({ open, onClose }: NewOrderModalProps) {
       alert('Adicione pelo menos um produto!');
       return;
     }
-    alert(`Pedido criado!\nCliente: ${selectedCliente}\nProdutos: ${produtos.length}\nTotal: R$ ${total.toFixed(2)}`);
-    onClose();
+
+    try {
+      await api.pedidos.create({
+        cliente: selectedCliente,
+        total,
+        descontoTipo: descontoGeral.valor ? descontoGeral.tipo : undefined,
+        descontoValor: descontoGeral.valor || undefined,
+        metodoPagamento,
+        observacoes: observacoes || undefined,
+        produtos: produtos.map((p) => ({
+          produtoId: p.produtoId,
+          nome: p.nome,
+          preco: p.preco,
+          quantidade: p.quantidade,
+          descontoTipo: p.desconto.valor ? p.desconto.tipo : undefined,
+          descontoValor: p.desconto.valor || undefined,
+        })),
+        prazos: prazos.length > 0 ? prazos : undefined,
+      });
+      onClose();
+    } catch {
+      alert('Erro ao criar pedido');
+    }
   }
 
   return (
@@ -400,8 +415,8 @@ export function NewOrderModal({ open, onClose }: NewOrderModalProps) {
       <ProductSelectionModal
         open={showProductSelection}
         onClose={() => setShowProductSelection(false)}
-        produtos={MOCK_PRODUTOS}
-        industrias={MOCK_INDUSTRIAS}
+        produtos={produtosApi}
+        industrias={industrias}
         onAddProduct={handleAddProductFromSelection}
         selectedCount={produtos.length}
       />

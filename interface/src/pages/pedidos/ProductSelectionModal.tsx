@@ -2,33 +2,15 @@ import { useState, useMemo } from 'react';
 import { X, Search, ShoppingCart, Check, Package } from 'lucide-react';
 import { CustomButton } from '../../components/custom-button';
 import { ModalPortal } from '../../components/modal-portal';
+import { type Produto, type Industria } from '../../api/client';
 import './ProductSelectionModal.css';
-
-interface Variacao {
-  tipo: string;
-  valor: string;
-}
-
-interface Produto {
-  id: string;
-  nome: string;
-  preco: number;
-  industria: string;
-  imagem?: string;
-  variacoes?: Variacao[];
-}
-
-interface Industria {
-  id: string;
-  nome: string;
-}
 
 interface ProductSelectionModalProps {
   open: boolean;
   onClose: () => void;
   produtos: Produto[];
   industrias: Industria[];
-  onAddProduct: (produto: Produto, variacao?: Variacao) => void;
+  onAddProduct: (produto: Produto, variacao?: { tipo: string; valor: string }) => void;
   selectedCount: number;
 }
 
@@ -149,8 +131,8 @@ export function ProductSelectionModal({
                 filteredProducts.map((produto) => (
                   <div key={produto.id} className="ps-produto-card">
                     <div className="ps-produto-img">
-                      {produto.imagem ? (
-                        <img src={produto.imagem} alt={produto.nome} />
+                      {produto.imagens && produto.imagens.length > 0 ? (
+                        <img src={produto.imagens[0]} alt={produto.nome} />
                       ) : (
                         <Package size={24} />
                       )}
@@ -193,8 +175,8 @@ export function ProductSelectionModal({
 
               <div className="ps-variation-preview">
                 <div className="ps-variation-preview__img">
-                  {selectedProduct.imagem ? (
-                    <img src={selectedProduct.imagem} alt={selectedProduct.nome} />
+                  {selectedProduct.imagens && selectedProduct.imagens.length > 0 ? (
+                    <img src={selectedProduct.imagens[0]} alt={selectedProduct.nome} />
                   ) : (
                     <Package size={32} />
                   )}

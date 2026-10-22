@@ -169,6 +169,13 @@
   text-align: right;
 }
 
+.dashboard__empty {
+  text-align: center;
+  padding: var(--space-5);
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+}
+
 /* ── Actions ── */
 .dashboard__actions {
   display: grid;

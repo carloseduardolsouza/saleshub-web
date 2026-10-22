@@ -1,7 +1,7 @@
 import { type ButtonHTMLAttributes, type ReactNode } from 'react';
 import './CustomButton.css';
 
-type ButtonVariant = 'primary' | 'accent' | 'outline' | 'danger';
+type ButtonVariant = 'primary' | 'accent' | 'outline' | 'danger' | 'ghost';
 type ButtonSize = 'sm' | 'md';
 
 interface CustomButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

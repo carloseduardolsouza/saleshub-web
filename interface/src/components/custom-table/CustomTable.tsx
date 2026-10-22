@@ -26,7 +26,7 @@ interface CustomTableProps<T> {
 
 type SortDir = 'asc' | 'desc' | null;
 
-export function CustomTable<T extends Record<string, unknown>>({
+export function CustomTable<T extends object>({
   columns,
   data,
   rowKey,
@@ -57,8 +57,8 @@ export function CustomTable<T extends Record<string, unknown>>({
   const sortedData = useMemo(() => {
     if (!sortKey || !sortDir) return data;
     return [...data].sort((a, b) => {
-      const aVal = a[sortKey];
-      const bVal = b[sortKey];
+      const aVal = (a as Record<string, unknown>)[sortKey];
+      const bVal = (b as Record<string, unknown>)[sortKey];
       if (aVal == null && bVal == null) return 0;
       if (aVal == null) return 1;
       if (bVal == null) return -1;
@@ -171,7 +171,7 @@ export function CustomTable<T extends Record<string, unknown>>({
                   >
                     {col.render
                       ? col.render(row, idx)
-                      : (row[col.key] as ReactNode) ?? <span className="ct__td--muted">-</span>}
+                      : ((row as Record<string, unknown>)[col.key] as ReactNode) ?? <span className="ct__td--muted">-</span>}
                   </td>
                 ))}
               </tr>

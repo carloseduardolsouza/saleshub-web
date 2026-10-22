@@ -1,1 +1,1 @@
-export { Industrias } from './Industrias';
+export { Industrias } from './industrias';

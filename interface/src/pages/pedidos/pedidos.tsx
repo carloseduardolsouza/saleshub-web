@@ -1,116 +1,129 @@
-import { useState } from 'react';
-import { Plus, Eye, Edit2, Trash2, ShoppingCart } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Eye, Trash2, ShoppingCart, Edit2 } from 'lucide-react';
 import { CustomButton } from '../../components/custom-button';
 import { CustomInput } from '../../components/custom-input';
-import { CustomSelect } from '../../components/custom-select';
 import { CustomTable, type TableColumn } from '../../components/custom-table';
 import { NewOrderModal } from './NewOrderModal';
+import { EditPedidoModal } from './EditPedidoModal';
+import { DetailsPedidoModal } from './DetailsPedidoModal';
+import { api, type Pedido } from '../../api/client';
 import '../../styles/modal.css';
 import './Pedidos.css';
 
-interface Pedido {
-  id: string;
-  cliente: string;
-  produtos: number;
-  total: string;
-  status: string;
-  data: string;
-  pagamento: string;
-}
-
-const MOCK_PEDIDOS: Pedido[] = [
-  { id: '#1042', cliente: 'Maria Silva', produtos: 3, total: 'R$ 458,90', status: 'pendente', data: '06/08/2026', pagamento: 'Dinheiro' },
-  { id: '#1041', cliente: 'Joao Santos', produtos: 5, total: 'R$ 1.230,00', status: 'em_preparo', data: '06/08/2026', pagamento: 'Cartao' },
-  { id: '#1040', cliente: 'Ana Oliveira', produtos: 1, total: 'R$ 89,50', status: 'pronto', data: '05/08/2026', pagamento: 'Boleto' },
-  { id: '#1039', cliente: 'Carlos Souza', produtos: 2, total: 'R$ 345,00', status: 'entregue', data: '05/08/2026', pagamento: 'Pix' },
-  { id: '#1038', cliente: 'Lucia Ferreira', produtos: 4, total: 'R$ 672,30', status: 'atrasado', data: '04/08/2026', pagamento: 'Dinheiro' },
-  { id: '#1037', cliente: 'Pedro Lima', produtos: 2, total: 'R$ 198,00', status: 'pendente', data: '04/08/2026', pagamento: 'Cartao' },
-];
-
-const STATUS_OPTIONS = [
-  { value: 'todos', label: 'Todos' },
-  { value: 'pendente', label: 'Pendente' },
-  { value: 'em_preparo', label: 'Em Preparo' },
-  { value: 'pronto', label: 'Pronto' },
-  { value: 'entregue', label: 'Entregue' },
-  { value: 'atrasado', label: 'Atrasado' },
-];
-
-const STATUS_BADGE: Record<string, string> = {
-  pendente: 'ct-badge--warning',
-  em_preparo: 'ct-badge--info',
-  pronto: 'ct-badge--success',
-  entregue: 'ct-badge--neutral',
-  atrasado: 'ct-badge--danger',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  pendente: 'Pendente',
-  em_preparo: 'Em Preparo',
-  pronto: 'Pronto',
-  entregue: 'Entregue',
-  atrasado: 'Atrasado',
-};
-
-const columns: TableColumn<Pedido>[] = [
-  {
-    key: 'id',
-    header: 'ID',
-    width: '70px',
-    render: (row) => <span className="ct-mono">{row.id}</span>,
-  },
-  {
-    key: 'cliente',
-    header: 'Cliente',
-    sortable: true,
-    render: (row) => <span className="ct-name">{row.cliente}</span>,
-  },
-  { key: 'produtos', header: 'Produtos', width: '70px', align: 'center' },
-  {
-    key: 'total',
-    header: 'Total',
-    sortable: true,
-    align: 'right',
-    render: (row) => <span className="ct-total">{row.total}</span>,
-  },
-  {
-    key: 'status',
-    header: 'Status',
-    width: '110px',
-    render: (row) => (
-      <span className={`ct-badge ${STATUS_BADGE[row.status] ?? 'ct-badge--neutral'}`}>
-        <span className="ct-badge__dot" />
-        {STATUS_LABEL[row.status] ?? row.status}
-      </span>
-    ),
-  },
-  { key: 'data', header: 'Data', width: '95px', sortable: true },
-  { key: 'pagamento', header: 'Pagamento', width: '95px' },
-  {
-    key: 'actions',
-    header: '',
-    width: '80px',
-    align: 'center',
-    render: () => (
-      <div className="ct-actions">
-        <button className="icon-btn icon-btn--xs" title="Detalhes"><Eye size={14} /></button>
-        <button className="icon-btn icon-btn--xs" title="Editar"><Edit2 size={14} /></button>
-        <button className="icon-btn icon-btn--xs icon-btn--danger" title="Excluir"><Trash2 size={14} /></button>
-      </div>
-    ),
-  },
-];
-
 export function Pedidos() {
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('todos');
   const [showNewOrder, setShowNewOrder] = useState(false);
+  const [showEditPedido, setShowEditPedido] = useState(false);
+  const [showDetailsPedido, setShowDetailsPedido] = useState(false);
+  const [selectedPedido, setSelectedPedido] = useState<Pedido | null>(null);
 
-  const filtered = MOCK_PEDIDOS.filter((p) => {
-    const matchSearch = !search || p.cliente.toLowerCase().includes(search.toLowerCase()) || p.id.includes(search);
-    const matchStatus = statusFilter === 'todos' || p.status === statusFilter;
-    return matchSearch && matchStatus;
+  async function loadData() {
+    try {
+      const data = await api.pedidos.getAll();
+      setPedidos(data);
+    } catch {
+      console.error('Erro ao carregar pedidos');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadData(); }, []);
+
+  const filtered = pedidos.filter((p) => {
+    return !search || p.cliente.toLowerCase().includes(search.toLowerCase()) || String(p.id).includes(search);
   });
+
+  async function handleDelete(id: number) {
+    if (!window.confirm('Tem certeza que deseja excluir este pedido?')) return;
+    try {
+      await api.pedidos.delete(id);
+      setPedidos((prev) => prev.filter((p) => p.id !== id));
+    } catch {
+      alert('Erro ao excluir pedido');
+    }
+  }
+
+  function handleViewDetails(pedido: Pedido) {
+    setSelectedPedido(pedido);
+    setShowDetailsPedido(true);
+  }
+
+  function handleEditPedido(pedido: Pedido) {
+    setSelectedPedido(pedido);
+    setShowEditPedido(true);
+  }
+
+  function formatPrice(total: number) {
+    return `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  }
+
+  function formatDate(date?: string) {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('pt-BR');
+  }
+
+  const columns: TableColumn<Pedido>[] = [
+    {
+      key: 'id',
+      header: 'ID',
+      width: '70px',
+      render: (row) => <span className="ct-mono">#{row.id}</span>,
+    },
+    {
+      key: 'cliente',
+      header: 'Cliente',
+      sortable: true,
+      render: (row) => <span className="ct-name">{row.cliente}</span>,
+    },
+    {
+      key: 'produtos',
+      header: 'Produtos',
+      width: '70px',
+      align: 'center',
+      render: (row) => String(row.produtos?.length || 0),
+    },
+    {
+      key: 'total',
+      header: 'Total',
+      sortable: true,
+      align: 'right',
+      render: (row) => <span className="ct-total">{formatPrice(row.total)}</span>,
+    },
+    {
+      key: 'data',
+      header: 'Data',
+      width: '95px',
+      sortable: true,
+      render: (row) => formatDate(row.data),
+    },
+    {
+      key: 'metodoPagamento',
+      header: 'Pagamento',
+      width: '95px',
+      render: (row) => row.metodoPagamento,
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: '100px',
+      align: 'center',
+      render: (row) => (
+        <div className="ct-actions">
+          <button className="icon-btn icon-btn--xs" title="Detalhes" onClick={(e) => { e.stopPropagation(); handleViewDetails(row); }}><Eye size={14} /></button>
+          <button className="icon-btn icon-btn--xs" title="Editar" onClick={(e) => { e.stopPropagation(); handleEditPedido(row); }}><Edit2 size={14} /></button>
+          <button className="icon-btn icon-btn--xs icon-btn--danger" title="Excluir" onClick={(e) => { e.stopPropagation(); handleDelete(row.id!); }}><Trash2 size={14} /></button>
+        </div>
+      ),
+    },
+  ];
+
+  if (loading) {
+    return <div className="pedidos"><p>Carregando...</p></div>;
+  }
 
   return (
     <div className="pedidos">
@@ -129,11 +142,6 @@ export function Pedidos() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <CustomSelect
-          options={STATUS_OPTIONS}
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        />
       </div>
 
       <div className="pedidos__counter">
@@ -142,14 +150,25 @@ export function Pedidos() {
 
       <CustomTable<Pedido>
         columns={columns}
-        data={filtered as unknown as Record<string, unknown>[]}
-        rowKey={(row) => row.id}
+        data={filtered}
+        rowKey={(row) => row.id!}
         emptyTitle="Nenhum pedido encontrado"
         emptyDescription='Clique em "Novo Pedido" para criar'
         emptyIcon={<ShoppingCart size={40} />}
       />
 
-      <NewOrderModal open={showNewOrder} onClose={() => setShowNewOrder(false)} />
+      <NewOrderModal open={showNewOrder} onClose={() => { setShowNewOrder(false); loadData(); }} />
+      <EditPedidoModal
+        open={showEditPedido}
+        pedido={selectedPedido}
+        onClose={() => { setShowEditPedido(false); setSelectedPedido(null); loadData(); }}
+      />
+      <DetailsPedidoModal
+        open={showDetailsPedido}
+        pedido={selectedPedido}
+        onClose={() => { setShowDetailsPedido(false); setSelectedPedido(null); }}
+        onDelete={handleDelete}
+      />
     </div>
   );
 }

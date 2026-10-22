@@ -3,29 +3,46 @@ import { useNavigate } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import { CustomInput } from '../../components/custom-input';
 import { CustomButton } from '../../components/custom-button';
+import { api } from '../../api/client';
 import './Login.css';
 
-export function Login() {
+interface LoginProps {
+  onLogin?: () => void;
+}
+
+export function Login({ onLogin }: LoginProps) {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; global?: string }>({});
+  const [loading, setLoading] = useState(false);
 
   function validate() {
     const next: typeof errors = {};
-    if (!email.trim()) next.email = 'E-mail obrigatório';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'E-mail inválido';
-    if (!password) next.password = 'Senha obrigatória';
-    else if (password.length < 6) next.password = 'Mínimo de 6 caracteres';
+    if (!email.trim()) next.email = 'E-mail obrigatorio';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) next.email = 'E-mail invalido';
+    if (!password) next.password = 'Senha obrigatoria';
     setErrors(next);
     return Object.keys(next).length === 0;
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
-    // TODO: integrar com API de autenticação
-    navigate('/dashboard');
+
+    setLoading(true);
+    setErrors({});
+
+    try {
+      await api.auth.login(email, password);
+      onLogin?.();
+      navigate('/dashboard');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao fazer login';
+      setErrors({ global: message });
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -40,6 +57,8 @@ export function Login() {
         </div>
 
         <form className="login-card__form" onSubmit={handleSubmit}>
+          {errors.global && <div className="login-error">{errors.global}</div>}
+
           <CustomInput
             label="E-mail"
             type="email"
@@ -66,8 +85,8 @@ export function Login() {
             </a>
           </div>
 
-          <CustomButton type="submit" variant="primary" className="login-card__submit">
-            Entrar
+          <CustomButton type="submit" variant="primary" className="login-card__submit" disabled={loading}>
+            {loading ? 'Entrando...' : 'Entrar'}
           </CustomButton>
         </form>
       </div>

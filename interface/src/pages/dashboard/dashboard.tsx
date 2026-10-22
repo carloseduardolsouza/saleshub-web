@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -6,32 +7,71 @@ import {
   TrendingUp,
   ArrowUpRight,
 } from 'lucide-react';
+import { api, type Pedido } from '../../api/client';
 import './Dashboard.css';
-
-const METRICS = [
-  { label: 'Pedidos Hoje', value: '12', icon: ShoppingCart, color: 'var(--color-info)', change: '+8%' },
-  { label: 'Clientes', value: '148', icon: Users, color: 'var(--color-success)', change: '+3%' },
-  { label: 'Produtos', value: '326', icon: Package, color: 'var(--color-accent)', change: '+5%' },
-  { label: 'Faturamento', value: 'R$ 24.580', icon: TrendingUp, color: 'var(--color-primary)', change: '+12%' },
-];
-
-const RECENT_ORDERS = [
-  { id: '#1042', client: 'Maria Silva', total: 'R$ 458,90', status: 'pendente', time: '14:32' },
-  { id: '#1041', client: 'Joao Santos', total: 'R$ 1.230,00', status: 'em_preparo', time: '13:15' },
-  { id: '#1040', client: 'Ana Oliveira', total: 'R$ 89,50', status: 'pronto', time: '12:48' },
-  { id: '#1039', client: 'Carlos Souza', total: 'R$ 345,00', status: 'entregue', time: '11:20' },
-  { id: '#1038', client: 'Lucia Ferreira', total: 'R$ 672,30', status: 'atrasado', time: '10:05' },
-];
 
 const STATUS_MAP: Record<string, { label: string; className: string }> = {
   pendente: { label: 'Pendente', className: 'badge-pending' },
-  em_preparo: { label: 'Em Preparo', className: 'badge-progress' },
-  pronto: { label: 'Pronto', className: 'badge-ready' },
-  atrasado: { label: 'Atrasado', className: 'badge-late' },
-  entregue: { label: 'Entregue', className: 'badge-done' },
+  processando: { label: 'Processando', className: 'badge-progress' },
+  concluido: { label: 'Concluido', className: 'badge-done' },
+  cancelado: { label: 'Cancelado', className: 'badge-late' },
 };
 
 export function Dashboard() {
+  const [metrics, setMetrics] = useState([
+    { label: 'Pedidos Hoje', value: '0', icon: ShoppingCart, color: 'var(--color-info)', change: '' },
+    { label: 'Clientes', value: '0', icon: Users, color: 'var(--color-success)', change: '' },
+    { label: 'Produtos', value: '0', icon: Package, color: 'var(--color-accent)', change: '' },
+    { label: 'Faturamento', value: 'R$ 0,00', icon: TrendingUp, color: 'var(--color-primary)', change: '' },
+  ]);
+  const [recentOrders, setRecentOrders] = useState<Pedido[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [pedidos, clientes, produtos] = await Promise.all([
+          api.pedidos.getAll(),
+          api.clientes.getAll(),
+          api.produtos.getAll(),
+        ]);
+
+        const today = new Date().toISOString().split('T')[0];
+        const pedidosHoje = pedidos.filter((p) => p.data?.startsWith(today));
+        const faturamento = pedidos
+          .filter((p) => p.status !== 'cancelado')
+          .reduce((acc, p) => acc + p.total, 0);
+
+        setMetrics([
+          { label: 'Pedidos Hoje', value: String(pedidosHoje.length), icon: ShoppingCart, color: 'var(--color-info)', change: '' },
+          { label: 'Clientes', value: String(clientes.length), icon: Users, color: 'var(--color-success)', change: '' },
+          { label: 'Produtos', value: String(produtos.length), icon: Package, color: 'var(--color-accent)', change: '' },
+          { label: 'Faturamento', value: `R$ ${faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: TrendingUp, color: 'var(--color-primary)', change: '' },
+        ]);
+
+        setRecentOrders(pedidos.slice(0, 5));
+      } catch {
+        console.error('Erro ao carregar dashboard');
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  function formatPrice(value: number) {
+    return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  }
+
+  function formatTime(date?: string) {
+    if (!date) return '';
+    return new Date(date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  if (loading) {
+    return <div className="dashboard"><p>Carregando...</p></div>;
+  }
+
   return (
     <div className="dashboard">
       <div className="dashboard__header">
@@ -42,13 +82,13 @@ export function Dashboard() {
       </div>
 
       <div className="dashboard__metrics">
-        {METRICS.map((m) => (
+        {metrics.map((m) => (
           <div key={m.label} className="metric-card" style={{ borderLeftColor: m.color }}>
             <div className="metric-card__header">
               <div className="metric-card__icon" style={{ background: m.color + '18' }}>
                 <m.icon size={20} color={m.color} />
               </div>
-              <span className="metric-card__change">{m.change}</span>
+              {m.change && <span className="metric-card__change">{m.change}</span>}
             </div>
             <span className="metric-card__value">{m.value}</span>
             <span className="metric-card__label">{m.label}</span>
@@ -65,22 +105,26 @@ export function Dashboard() {
             </a>
           </div>
           <div className="dashboard__orders">
-            {RECENT_ORDERS.map((order) => {
-              const status = STATUS_MAP[order.status];
-              return (
-                <div key={order.id} className="order-row">
-                  <div className="order-row__left">
-                    <span className="order-row__id">{order.id}</span>
-                    <span className="order-row__client">{order.client}</span>
+            {recentOrders.length === 0 ? (
+              <p className="dashboard__empty">Nenhum pedido encontrado</p>
+            ) : (
+              recentOrders.map((order) => {
+                const status = STATUS_MAP[order.status ?? 'pendente'] ?? STATUS_MAP.pendente;
+                return (
+                  <div key={order.id} className="order-row">
+                    <div className="order-row__left">
+                      <span className="order-row__id">#{order.id}</span>
+                      <span className="order-row__client">{order.cliente}</span>
+                    </div>
+                    <div className="order-row__right">
+                      <span className={`badge ${status.className}`}>{status.label}</span>
+                      <span className="order-row__total">{formatPrice(order.total)}</span>
+                      <span className="order-row__time">{formatTime(order.data)}</span>
+                    </div>
                   </div>
-                  <div className="order-row__right">
-                    <span className={`badge ${status.className}`}>{status.label}</span>
-                    <span className="order-row__total">{order.total}</span>
-                    <span className="order-row__time">{order.time}</span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 

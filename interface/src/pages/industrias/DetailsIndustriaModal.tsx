@@ -1,17 +1,7 @@
 import { X, Building, Phone, Mail, Edit2, Trash2 } from 'lucide-react';
 import { CustomButton } from '../../components/custom-button';
 import { ModalPortal } from '../../components/modal-portal';
-
-interface Industria {
-  id: string;
-  cnpj: string;
-  nome: string;
-  telefoneComercial: string;
-  telefoneAssistencia: string;
-  email: string;
-  dataCadastro: string;
-  dataEdicao?: string;
-}
+import { type Industria } from '../../api/client';
 
 interface DetailsIndustriaModalProps {
   open: boolean;

@@ -1,18 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Edit2 } from 'lucide-react';
 import { CustomInput } from '../../components/custom-input';
 import { CustomButton } from '../../components/custom-button';
 import { ModalPortal } from '../../components/modal-portal';
-
-interface Industria {
-  id: string;
-  cnpj: string;
-  nome: string;
-  telefoneComercial: string;
-  telefoneAssistencia: string;
-  email: string;
-  dataCadastro: string;
-}
+import { api, type Industria } from '../../api/client';
 
 interface EditIndustriaModalProps {
   open: boolean;
@@ -21,16 +12,25 @@ interface EditIndustriaModalProps {
 }
 
 export function EditIndustriaModal({ open, industria, onClose }: EditIndustriaModalProps) {
-  const [form, setForm] = useState(() => {
-    if (!industria) return { cnpj: '', nome: '', telefoneComercial: '', telefoneAssistencia: '', email: '' };
-    return {
-      cnpj: industria.cnpj,
-      nome: industria.nome,
-      telefoneComercial: industria.telefoneComercial,
-      telefoneAssistencia: industria.telefoneAssistencia,
-      email: industria.email,
-    };
+  const [form, setForm] = useState({
+    cnpj: '',
+    nome: '',
+    telefoneComercial: '',
+    telefoneAssistencia: '',
+    email: '',
   });
+
+  useEffect(() => {
+    if (open && industria) {
+      setForm({
+        cnpj: industria.cnpj,
+        nome: industria.nome,
+        telefoneComercial: industria.telefoneComercial || '',
+        telefoneAssistencia: industria.telefoneAssistencia || '',
+        email: industria.email || '',
+      });
+    }
+  }, [open, industria]);
 
   if (!open || !industria) return null;
 
@@ -38,7 +38,7 @@ export function EditIndustriaModal({ open, industria, onClose }: EditIndustriaMo
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.cnpj.trim()) {
       alert('CNPJ e obrigatorio!');
       return;
@@ -56,8 +56,14 @@ export function EditIndustriaModal({ open, industria, onClose }: EditIndustriaMo
       alert('Email invalido!');
       return;
     }
-    alert(`Industria atualizada!\nNome: ${form.nome}`);
-    onClose();
+
+    try {
+      if (!industria) return;
+      await api.industrias.update(industria.id!, form);
+      onClose();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao atualizar industria');
+    }
   }
 
   return (
