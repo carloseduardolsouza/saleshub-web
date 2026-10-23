@@ -11,13 +11,15 @@ interface DetailsIndustriaModalProps {
   onDelete: (industria: Industria) => void;
 }
 
+const fmt = (d?: string) => (d ? new Date(d).toLocaleDateString('pt-BR') : '-');
+
 export function DetailsIndustriaModal({ open, industria, onClose, onEdit, onDelete }: DetailsIndustriaModalProps) {
   if (!open || !industria) return null;
 
   return (
     <ModalPortal>
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-container details-industria" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <div className="modal-header__left">
               <Building size={20} />
@@ -66,8 +68,8 @@ export function DetailsIndustriaModal({ open, industria, onClose, onEdit, onDele
             </div>
 
             <p className="details-date">
-              Cadastrado em: {industria.dataCadastro}
-              {industria.dataEdicao && ` (Editado em: ${industria.dataEdicao})`}
+              Cadastrado em: {fmt(industria.dataCadastro)}
+              {industria.dataEdicao && ` (Editado em: ${fmt(industria.dataEdicao)})`}
             </p>
           </div>
 

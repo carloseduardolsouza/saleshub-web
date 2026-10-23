@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -8,7 +9,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { api, type Pedido } from '../../api/client';
-import './Dashboard.css';
+import './dashboard.css';
 
 const STATUS_MAP: Record<string, { label: string; className: string }> = {
   pendente: { label: 'Pendente', className: 'badge-pending' },
@@ -17,15 +18,47 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
   cancelado: { label: 'Cancelado', className: 'badge-late' },
 };
 
+const formatInt = (v: number) => String(Math.round(v));
+const formatPrice = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function formatTime(date?: string) {
+  if (!date) return '';
+  return new Date(date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function CountUp({ value, format }: { value: number; format: (v: number) => string }) {
+  const [shown, setShown] = useState(0);
+  const from = useRef(0);
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      from.current = value;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShown(value);
+      return;
+    }
+    const origin = from.current;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / 900);
+      const v = origin + (value - origin) * (1 - Math.pow(1 - t, 3));
+      from.current = v;
+      setShown(v);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+
+  return <>{format(shown)}</>;
+}
+
 export function Dashboard() {
-  const [metrics, setMetrics] = useState([
-    { label: 'Pedidos Hoje', value: '0', icon: ShoppingCart, color: 'var(--color-info)', change: '' },
-    { label: 'Clientes', value: '0', icon: Users, color: 'var(--color-success)', change: '' },
-    { label: 'Produtos', value: '0', icon: Package, color: 'var(--color-accent)', change: '' },
-    { label: 'Faturamento', value: 'R$ 0,00', icon: TrendingUp, color: 'var(--color-primary)', change: '' },
-  ]);
+  const [counts, setCounts] = useState({ hoje: 0, clientes: 0, produtos: 0, faturamento: 0 });
   const [recentOrders, setRecentOrders] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -36,22 +69,17 @@ export function Dashboard() {
           api.produtos.getAll(),
         ]);
 
-        const today = new Date().toISOString().split('T')[0];
-        const pedidosHoje = pedidos.filter((p) => p.data?.startsWith(today));
+        // Compara no fuso local (toISOString usa UTC e erra "hoje" a noite)
+        const hoje = new Date().toDateString();
+        const pedidosHoje = pedidos.filter((p) => p.data && new Date(p.data).toDateString() === hoje);
         const faturamento = pedidos
           .filter((p) => p.status !== 'cancelado')
           .reduce((acc, p) => acc + p.total, 0);
 
-        setMetrics([
-          { label: 'Pedidos Hoje', value: String(pedidosHoje.length), icon: ShoppingCart, color: 'var(--color-info)', change: '' },
-          { label: 'Clientes', value: String(clientes.length), icon: Users, color: 'var(--color-success)', change: '' },
-          { label: 'Produtos', value: String(produtos.length), icon: Package, color: 'var(--color-accent)', change: '' },
-          { label: 'Faturamento', value: `R$ ${faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: TrendingUp, color: 'var(--color-primary)', change: '' },
-        ]);
-
+        setCounts({ hoje: pedidosHoje.length, clientes: clientes.length, produtos: produtos.length, faturamento });
         setRecentOrders(pedidos.slice(0, 5));
       } catch {
-        console.error('Erro ao carregar dashboard');
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -59,17 +87,23 @@ export function Dashboard() {
     load();
   }, []);
 
-  function formatPrice(value: number) {
-    return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-  }
-
-  function formatTime(date?: string) {
-    if (!date) return '';
-    return new Date(date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  }
+  const metrics = [
+    { label: 'Pedidos Hoje', value: counts.hoje, icon: ShoppingCart, color: 'var(--color-info)', format: formatInt },
+    { label: 'Clientes', value: counts.clientes, icon: Users, color: 'var(--color-success)', format: formatInt },
+    { label: 'Produtos', value: counts.produtos, icon: Package, color: 'var(--color-warning)', format: formatInt },
+    { label: 'Faturamento', value: counts.faturamento, icon: TrendingUp, color: 'var(--color-accent)', format: formatPrice },
+  ];
 
   if (loading) {
-    return <div className="dashboard"><p>Carregando...</p></div>;
+    return (
+      <div className="dashboard" aria-busy="true">
+        <div className="skeleton skeleton--title" />
+        <div className="dashboard__metrics">
+          {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton skeleton--card" />)}
+        </div>
+        <div className="skeleton skeleton--block" />
+      </div>
+    );
   }
 
   return (
@@ -81,16 +115,25 @@ export function Dashboard() {
         </div>
       </div>
 
+      {error && (
+        <div className="dashboard__error" role="alert">
+          Nao foi possivel carregar todos os dados. Verifique a conexao e recarregue a pagina.
+        </div>
+      )}
+
       <div className="dashboard__metrics">
-        {metrics.map((m) => (
-          <div key={m.label} className="metric-card" style={{ borderLeftColor: m.color }}>
+        {metrics.map((m, i) => (
+          <div
+            key={m.label}
+            className="metric-card"
+            style={{ '--accent': m.color, animationDelay: `${i * 70}ms` } as CSSProperties}
+          >
             <div className="metric-card__header">
-              <div className="metric-card__icon" style={{ background: m.color + '18' }}>
+              <div className="metric-card__icon">
                 <m.icon size={20} color={m.color} />
               </div>
-              {m.change && <span className="metric-card__change">{m.change}</span>}
             </div>
-            <span className="metric-card__value">{m.value}</span>
+            <span className="metric-card__value"><CountUp value={m.value} format={m.format} /></span>
             <span className="metric-card__label">{m.label}</span>
           </div>
         ))}
@@ -100,9 +143,9 @@ export function Dashboard() {
         <div className="dashboard__card">
           <div className="dashboard__card-header">
             <h2 className="dashboard__card-title">Pedidos Recentes</h2>
-            <a href="/pedidos" className="dashboard__link">
+            <Link to="/pedidos" className="dashboard__link">
               Ver todos <ArrowUpRight size={14} />
-            </a>
+            </Link>
           </div>
           <div className="dashboard__orders">
             {recentOrders.length === 0 ? (
@@ -133,22 +176,22 @@ export function Dashboard() {
             <h2 className="dashboard__card-title">Acoes Rapidas</h2>
           </div>
           <div className="dashboard__actions">
-            <a href="/pedidos" className="action-btn action-btn--primary">
+            <Link to="/pedidos" className="action-btn action-btn--primary">
               <ShoppingCart size={18} />
-              <span>Novo Pedido</span>
-            </a>
-            <a href="/clientes" className="action-btn action-btn--success">
+              <span>Pedidos</span>
+            </Link>
+            <Link to="/clientes" className="action-btn action-btn--success">
               <Users size={18} />
-              <span>Novo Cliente</span>
-            </a>
-            <a href="/produtos" className="action-btn action-btn--accent">
+              <span>Clientes</span>
+            </Link>
+            <Link to="/produtos" className="action-btn action-btn--accent">
               <Package size={18} />
-              <span>Novo Produto</span>
-            </a>
-            <a href="/industrias" className="action-btn action-btn--info">
+              <span>Produtos</span>
+            </Link>
+            <Link to="/industrias" className="action-btn action-btn--info">
               <LayoutDashboard size={18} />
               <span>Industrias</span>
-            </a>
+            </Link>
           </div>
         </div>
       </div>

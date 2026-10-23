@@ -1,4 +1,4 @@
-const API_BASE = `http://31.97.168.13:3334/api`;
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://31.97.168.13:3334/api';
 
 function getToken(): string | null {
   return localStorage.getItem('saleshub_token');

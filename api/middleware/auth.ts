@@ -1,7 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'saleshub-secret-key-2026';
+const DEV_SECRET = 'saleshub-secret-key-2026';
+const JWT_SECRET = process.env.JWT_SECRET || DEV_SECRET;
+if (JWT_SECRET === DEV_SECRET) {
+  if (process.env.NODE_ENV === 'production') throw new Error('JWT_SECRET deve ser definido em producao');
+  console.warn('[auth] JWT_SECRET nao definido: usando segredo de desenvolvimento');
+}
 
 export interface AuthRequest extends Request {
   userId?: number;

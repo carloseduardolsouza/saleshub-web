@@ -1,25 +1,25 @@
 {
   "name": "saleshub-api",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "SalesHub Backend API",
   "type": "module",
   "scripts": {
     "dev": "npx tsx watch server.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/server.js",
     "db:push": "npx prisma db push --schema=./prisma/schema.prisma",
     "db:generate": "npx prisma generate --schema=./prisma/schema.prisma",
     "db:seed": "npx prisma db push --schema=./prisma/schema.prisma --skip-generate && npx tsx prisma/seed.ts",
-    "deploy": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy.ps1",
-    "deploy:local": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy.ps1 -SkipPush"
+    "deploy": "wsl bash ./scripts/deploy.sh",
+    "deploy:local": "wsl bash ./scripts/deploy.sh --skip-push"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "express": "^4.21.0",
-    "html-pdf-node": "^1.0.8",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "puppeteer-core": "^24.43.1"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

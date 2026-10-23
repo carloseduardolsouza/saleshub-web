@@ -3,9 +3,21 @@
   min-height: 100vh;
 }
 
-/* ── Desktop sidebar ── */
-.layout__sidebar-desktop {
-  flex-shrink: 0;
+.layout__skip {
+  position: fixed;
+  top: var(--space-4);
+  left: var(--space-4);
+  z-index: 200;
+  padding: var(--space-4) var(--space-7);
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-weight: var(--font-weight-semibold);
+  transform: translateY(-200%);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.layout__skip:focus {
+  transform: none;
 }
 
 /* ── Main ── */
@@ -15,15 +27,23 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  transition: margin-left 200ms ease;
+  min-width: 0;
+  transition: margin-left var(--dur-base) var(--ease-out);
 }
 
 .layout__content {
   flex: 1;
   padding: var(--container-padding);
-  overflow-y: auto;
-  background: var(--color-bg-surface);
+  background-color: var(--color-bg-surface);
+  background-image: var(--gradient-page);
+  background-attachment: fixed;
   min-width: 0;
+  outline: none;
+}
+
+/* Cada pagina entra com fade-up ao trocar de rota */
+.layout__content > * {
+  animation: fade-up var(--dur-slow) var(--ease-out) both;
 }
 
 /* ── Overlay mobile ── */
@@ -32,20 +52,25 @@
 }
 
 /* ══════════════════════════════════════
+   Desktop recolhido
+   ══════════════════════════════════════ */
+@media (min-width: 769px) {
+  .layout__main--collapsed {
+    margin-left: var(--sidebar-width-collapsed);
+  }
+}
+
+/* ══════════════════════════════════════
    RESPONSIVE — Mobile (< 768px)
    ══════════════════════════════════════ */
 @media (max-width: 768px) {
-  .layout__sidebar-desktop {
-    display: none;
-  }
-
   .layout__main {
     margin-left: 0;
   }
 
   .layout__content {
     padding: var(--space-5);
-    padding-bottom: 72px;
+    padding-bottom: 76px;
   }
 
   .layout__footer-desktop {
@@ -56,8 +81,17 @@
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--overlay-bg);
+    backdrop-filter: blur(3px);
     z-index: 95;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-base) ease;
+  }
+
+  .layout__overlay--visible {
+    opacity: 1;
+    pointer-events: auto;
   }
 }
 
@@ -65,7 +99,8 @@
    RESPONSIVE — Tablet (769px–1024px)
    ══════════════════════════════════════ */
 @media (min-width: 769px) and (max-width: 1024px) {
-  .layout__main {
+  .layout__main,
+  .layout__main--collapsed {
     margin-left: var(--sidebar-width-collapsed);
   }
 }

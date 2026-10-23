@@ -1,4 +1,4 @@
-import { type InputHTMLAttributes, forwardRef } from 'react';
+import { type InputHTMLAttributes, forwardRef, useId } from 'react';
 import './CustomInput.css';
 
 interface CustomInputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -7,16 +7,21 @@ interface CustomInputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const CustomInput = forwardRef<HTMLInputElement, CustomInputProps>(
-  ({ label, error, className = '', ...props }, ref) => {
+  ({ label, error, className = '', id, ...props }, ref) => {
+    const autoId = useId();
+    const inputId = id ?? autoId;
     return (
       <div className={`form-group ${error ? 'form-group--error' : ''}`}>
-        {label && <label className="form-label">{label}</label>}
+        {label && <label className="form-label" htmlFor={inputId}>{label}</label>}
         <input
           ref={ref}
+          id={inputId}
           className={`input ${error ? 'input--error' : ''} ${className}`}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${inputId}-error` : undefined}
           {...props}
         />
-        {error && <span className="form-error">{error}</span>}
+        {error && <span id={`${inputId}-error`} className="form-error" role="alert">{error}</span>}
       </div>
     );
   }

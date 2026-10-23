@@ -109,6 +109,8 @@ export function CustomTable<T extends object>({
                   style={col.width ? { width: col.width } : undefined}
                   className={`${col.sortable ? 'ct__th--sortable' : ''} ${col.align ? `ct__th--${col.align}` : ''}`}
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}
+                  tabIndex={col.sortable ? 0 : undefined}
+                  onKeyDown={col.sortable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSort(col.key); } } : undefined}
                   aria-sort={isSorted ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
                 >
                   <span className="ct__th-content">

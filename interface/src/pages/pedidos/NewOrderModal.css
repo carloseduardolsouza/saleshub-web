@@ -451,3 +451,32 @@
     gap: var(--space-2);
   }
 }
+
+/* ══ Refresh visual ══ */
+@keyframes order-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.order-produto-card { animation: order-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both; transition: background-color 140ms ease; }
+.order-produto-card:hover { background: var(--color-bg-surface); }
+.order-produto-variacao {
+  font-size: var(--fs-xs);
+  color: var(--color-warning);
+  font-weight: var(--font-weight-medium);
+}
+.order-qtd-btn { transition: transform 120ms ease, background-color 120ms ease; }
+.order-qtd-btn:hover:not(:disabled) { transform: scale(1.1); }
+.order-qtd-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.order-cliente-empty { padding: var(--space-5); text-align: center; color: var(--color-text-muted); font-size: var(--fs-sm); }
+.order-cliente-selected { animation: order-in 240ms ease both; }
+.order-pagamento-btn { transition: transform 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
+.order-pagamento-btn:hover { transform: translateY(-1px); }
+.order-pagamento-btn--selected { box-shadow: var(--shadow-sm); }
+.order-resumo { animation: order-in 260ms ease both; }
+.order-prazo-item { animation: order-in 200ms ease both; }
+.order-error {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-danger);
+  font-size: var(--fs-sm);
+  font-weight: var(--font-weight-medium);
+  animation: order-in 200ms ease both;
+}

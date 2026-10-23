@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { fail } from '../middleware/validate.js';
 import { ProdutoModel } from '../models/Produto.js';
 
 export const ProdutoController = {
@@ -7,7 +8,7 @@ export const ProdutoController = {
       const produtos = await ProdutoModel.getAll();
       return res.json(produtos);
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao buscar produtos' });
+      return fail(res, error, 'Erro ao buscar produtos');
     }
   },
 
@@ -17,7 +18,7 @@ export const ProdutoController = {
       if (!produto) return res.status(404).json({ error: 'Produto nao encontrado' });
       return res.json(produto);
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao buscar produto' });
+      return fail(res, error, 'Erro ao buscar produto');
     }
   },
 
@@ -25,13 +26,13 @@ export const ProdutoController = {
     try {
       const { nome, preco, industria } = req.body;
       if (!nome?.trim()) return res.status(400).json({ error: 'Nome e obrigatorio' });
-      if (!preco || preco <= 0) return res.status(400).json({ error: 'Preco invalido' });
-      if (!industria?.trim()) return res.status(400).json({ error: 'Industria e obrigatoria' });
+      if (typeof preco !== 'number' || !Number.isFinite(preco) || preco <= 0) return res.status(400).json({ error: 'Preco invalido' });
+      if (typeof industria !== 'string' || !industria.trim()) return res.status(400).json({ error: 'Industria e obrigatoria' });
 
       const produto = await ProdutoModel.create(req.body);
       return res.status(201).json(produto);
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao criar produto' });
+      return fail(res, error, 'Erro ao criar produto');
     }
   },
 
@@ -43,13 +44,13 @@ export const ProdutoController = {
 
       const { nome, preco, industria } = req.body;
       if (!nome?.trim()) return res.status(400).json({ error: 'Nome e obrigatorio' });
-      if (!preco || preco <= 0) return res.status(400).json({ error: 'Preco invalido' });
-      if (!industria?.trim()) return res.status(400).json({ error: 'Industria e obrigatoria' });
+      if (typeof preco !== 'number' || !Number.isFinite(preco) || preco <= 0) return res.status(400).json({ error: 'Preco invalido' });
+      if (typeof industria !== 'string' || !industria.trim()) return res.status(400).json({ error: 'Industria e obrigatoria' });
 
       const produto = await ProdutoModel.update(id, req.body);
       return res.json(produto);
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao atualizar produto' });
+      return fail(res, error, 'Erro ao atualizar produto');
     }
   },
 
@@ -62,7 +63,7 @@ export const ProdutoController = {
       await ProdutoModel.delete(id);
       return res.status(204).send();
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao deletar produto' });
+      return fail(res, error, 'Erro ao deletar produto');
     }
   },
 };

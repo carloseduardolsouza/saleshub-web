@@ -158,7 +158,7 @@
 .form-textarea:focus {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.35);
+  box-shadow: var(--focus-ring);
 }
 
 /* ── Details shared ── */
@@ -244,5 +244,6 @@
   .modal-container {
     max-height: 95vh;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    animation-name: sheet-up;
   }
 }

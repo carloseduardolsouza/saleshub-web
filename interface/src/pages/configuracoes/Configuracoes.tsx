@@ -1,512 +1,418 @@
-import { useState, useEffect } from 'react';
-import { Bell, Palette, Building2, Database, Info, ChevronRight, Download, Upload, Trash2, BarChart3, FileJson } from 'lucide-react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { Bell, Palette, Building2, Database, Info, ChevronRight, Download, Upload, BarChart3, FileJson, X, ImagePlus, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { CustomInput } from '../../components/custom-input';
 import { CustomButton } from '../../components/custom-button';
 import { ModalPortal } from '../../components/modal-portal';
 import { api } from '../../api/client';
+import { maskCnpj, maskPhone } from '../masks';
+import { resizeImage } from '../produtos/produtoUtils';
+import '../pages-common.css';
+import '../../styles/modal.css';
 import './Configuracoes.css';
+import './config-extra.css';
+
+const omit = (o: Record<string, unknown>, keys: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
+
+type Notice = { kind: 'ok' | 'error'; text: string } | null;
+
+const getTheme = () => (document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+
+function Toggle({ on }: { on: boolean }) {
+  return (
+    <span className={`config__toggle ${on ? 'config__toggle--on' : ''}`} aria-hidden="true">
+      <span className="config__toggle-thumb" />
+    </span>
+  );
+}
+
+function Setting({ title, sub, onClick, right, danger, role, checked }: {
+  title: string; sub: ReactNode; onClick?: () => void; right?: ReactNode; danger?: boolean; role?: 'switch'; checked?: boolean;
+}) {
+  const body = (
+    <>
+      <span className="config__setting-info">
+        <span className={`config__setting-title ${danger ? 'config__setting-title--danger' : ''}`}>{title}</span>
+        <span className="config__setting-sub">{sub}</span>
+      </span>
+      {right}
+    </>
+  );
+  return onClick ? (
+    <button type="button" className="config__setting config__setting--clickable" onClick={onClick} role={role} aria-checked={role ? checked : undefined}>
+      {body}
+    </button>
+  ) : (
+    <div className="config__setting">{body}</div>
+  );
+}
+
+function Modal({ title, icon, onClose, children, footer, large }: {
+  title: string; icon: ReactNode; onClose: () => void; children: ReactNode; footer: ReactNode; large?: boolean;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <ModalPortal>
+      <div className="modal-overlay" onClick={onClose}>
+        <div className={`modal-container ${large ? 'modal-container--lg' : ''}`} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <div className="modal-header__left">{icon}<h2 className="modal-title">{title}</h2></div>
+            <button className="modal-close" onClick={onClose} aria-label="Fechar"><X size={18} /></button>
+          </div>
+          <div className="modal-body">{children}</div>
+          <div className="modal-footer">{footer}</div>
+        </div>
+      </div>
+    </ModalPortal>
+  );
+}
 
 export function Configuracoes() {
   const [settings, setSettings] = useState({
     notificacoesPedidos: true,
     notificacoesClientes: true,
-    temaEscuro: false,
     empresaNome: '',
     empresaCNPJ: '',
     empresaEmail: '',
     empresaTelefone: '',
     empresaEndereco: '',
+    empresaLogoUri: '',
   });
-
+  const [dark, setDark] = useState(getTheme() === 'dark');
+  const [notice, setNotice] = useState<Notice>(null);
+  const [busy, setBusy] = useState(false);
   const [stats, setStats] = useState({ clientes: 0, produtos: 0, industrias: 0, pedidos: 0 });
-  const [showCompanyModal, setShowCompanyModal] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [showStatsModal, setShowStatsModal] = useState(false);
-  const [tempCompanyData, setTempCompanyData] = useState({
-    nome: '',
-    cnpj: '',
-    email: '',
-    telefone: '',
-    endereco: '',
-  });
+  const [modal, setModal] = useState<'company' | 'export' | 'stats' | null>(null);
+  const [temp, setTemp] = useState({ nome: '', cnpj: '', email: '', telefone: '', endereco: '', logo: '' });
+  const fileRef = useRef<HTMLInputElement>(null);
+  const importRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const config = await api.configuracoes.getAll();
-        setSettings((prev) => ({
-          ...prev,
-          notificacoesPedidos: config.notificacoesPedidos !== 'false',
-          notificacoesClientes: config.notificacoesClientes !== 'false',
-          temaEscuro: config.temaEscuro === 'true',
-          empresaNome: config.empresaNome || '',
-          empresaCNPJ: config.empresaCNPJ || '',
-          empresaEmail: config.empresaEmail || '',
-          empresaTelefone: config.empresaTelefone || '',
-          empresaEndereco: config.empresaEndereco || '',
-        }));
-      } catch {
-        console.error('Erro ao carregar configuracoes');
-      }
-    }
-    load();
+    api.configuracoes.getAll()
+      .then((config) => setSettings((prev) => ({
+        ...prev,
+        notificacoesPedidos: config.notificacoesPedidos !== 'false',
+        notificacoesClientes: config.notificacoesClientes !== 'false',
+        empresaNome: config.empresaNome || '',
+        empresaCNPJ: config.empresaCNPJ || '',
+        empresaEmail: config.empresaEmail || '',
+        empresaTelefone: config.empresaTelefone || '',
+        empresaEndereco: config.empresaEndereco || '',
+        empresaLogoUri: config.empresaLogoUri || '',
+      })))
+      .catch(() => setNotice({ kind: 'error', text: 'Nao foi possivel carregar as configuracoes.' }));
   }, []);
 
-  async function loadStats() {
+  async function openStats() {
+    setBusy(true);
     try {
-      const [clientes, produtos, industrias, pedidos] = await Promise.all([
-        api.clientes.getAll(),
-        api.produtos.getAll(),
-        api.industrias.getAll(),
-        api.pedidos.getAll(),
-      ]);
-      setStats({ clientes: clientes.length, produtos: produtos.length, industrias: industrias.length, pedidos: pedidos.length });
-    } catch {
-      console.error('Erro ao carregar estatisticas');
+      const [c, p, i, ped] = await Promise.all([api.clientes.getAll(), api.produtos.getAll(), api.industrias.getAll(), api.pedidos.getAll()]);
+      setStats({ clientes: c.length, produtos: p.length, industrias: i.length, pedidos: ped.length });
+      setModal('stats');
+    } catch (e) {
+      setNotice({ kind: 'error', text: e instanceof Error ? e.message : 'Erro ao carregar estatisticas' });
+    } finally {
+      setBusy(false);
     }
   }
 
-  async function handleToggle(key: keyof typeof settings) {
+  async function handleToggle(key: 'notificacoesPedidos' | 'notificacoesClientes') {
     const newValue = !settings[key];
     setSettings((prev) => ({ ...prev, [key]: newValue }));
     try {
       await api.configuracoes.set(key, String(newValue));
     } catch {
       setSettings((prev) => ({ ...prev, [key]: !newValue }));
-      alert('Erro ao salvar configuracao');
+      setNotice({ kind: 'error', text: 'Erro ao salvar configuracao' });
     }
   }
 
+  // O tema vive no layout (localStorage 'theme' + data-theme); aqui só aplicamos e avisamos.
+  function toggleTheme() {
+    const next = dark ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch { /* storage indisponivel */ }
+    window.dispatchEvent(new CustomEvent('saleshub:theme', { detail: next }));
+    setDark(next === 'dark');
+  }
+
   function openCompanyModal() {
-    setTempCompanyData({
-      nome: settings.empresaNome,
-      cnpj: settings.empresaCNPJ,
-      email: settings.empresaEmail,
-      telefone: settings.empresaTelefone,
-      endereco: settings.empresaEndereco,
+    setTemp({
+      nome: settings.empresaNome, cnpj: settings.empresaCNPJ, email: settings.empresaEmail,
+      telefone: settings.empresaTelefone, endereco: settings.empresaEndereco, logo: settings.empresaLogoUri,
     });
-    setShowCompanyModal(true);
+    setModal('company');
+  }
+
+  async function handleLogo(file?: File) {
+    if (!file) return;
+    try {
+      setTemp((p) => ({ ...p, logo: '' }));
+      const logo = await resizeImage(file, 300, 'image/png');
+      setTemp((p) => ({ ...p, logo }));
+    } catch {
+      setNotice({ kind: 'error', text: 'Nao foi possivel ler a imagem do logo.' });
+    }
+    if (fileRef.current) fileRef.current.value = '';
   }
 
   async function saveCompanyData() {
+    setBusy(true);
     try {
       await Promise.all([
-        api.configuracoes.set('empresaNome', tempCompanyData.nome),
-        api.configuracoes.set('empresaCNPJ', tempCompanyData.cnpj),
-        api.configuracoes.set('empresaEmail', tempCompanyData.email),
-        api.configuracoes.set('empresaTelefone', tempCompanyData.telefone),
-        api.configuracoes.set('empresaEndereco', tempCompanyData.endereco),
+        api.configuracoes.set('empresaNome', temp.nome.trim()),
+        api.configuracoes.set('empresaCNPJ', temp.cnpj),
+        api.configuracoes.set('empresaEmail', temp.email.trim()),
+        api.configuracoes.set('empresaTelefone', temp.telefone),
+        api.configuracoes.set('empresaEndereco', temp.endereco.trim()),
+        api.configuracoes.set('empresaLogoUri', temp.logo),
       ]);
       setSettings((prev) => ({
         ...prev,
-        empresaNome: tempCompanyData.nome,
-        empresaCNPJ: tempCompanyData.cnpj,
-        empresaEmail: tempCompanyData.email,
-        empresaTelefone: tempCompanyData.telefone,
-        empresaEndereco: tempCompanyData.endereco,
+        empresaNome: temp.nome.trim(), empresaCNPJ: temp.cnpj, empresaEmail: temp.email.trim(),
+        empresaTelefone: temp.telefone, empresaEndereco: temp.endereco.trim(), empresaLogoUri: temp.logo,
       }));
-      setShowCompanyModal(false);
-    } catch {
-      alert('Erro ao salvar dados da empresa');
+      setModal(null);
+      setNotice({ kind: 'ok', text: 'Dados da empresa salvos.' });
+    } catch (e) {
+      setNotice({ kind: 'error', text: e instanceof Error ? e.message : 'Erro ao salvar dados da empresa' });
+    } finally {
+      setBusy(false);
     }
   }
 
   async function handleExport() {
+    setBusy(true);
     try {
       const [clientes, produtos, industrias, pedidos, configuracoes] = await Promise.all([
-        api.clientes.getAll(),
-        api.produtos.getAll(),
-        api.industrias.getAll(),
-        api.pedidos.getAll(),
-        api.configuracoes.getAll(),
+        api.clientes.getAll(), api.produtos.getAll(), api.industrias.getAll(), api.pedidos.getAll(), api.configuracoes.getAll(),
       ]);
       const backup = { clientes, produtos, industrias, pedidos, configuracoes, data: new Date().toISOString() };
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
       const a = document.createElement('a');
       a.href = url;
       a.download = `saleshub-backup-${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      setShowExportModal(false);
-    } catch {
-      alert('Erro ao exportar dados');
+      setModal(null);
+      setNotice({ kind: 'ok', text: 'Backup exportado.' });
+    } catch (e) {
+      setNotice({ kind: 'error', text: e instanceof Error ? e.message : 'Erro ao exportar dados' });
+    } finally {
+      setBusy(false);
     }
   }
 
-  function handleImport() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      try {
-        const text = await file.text();
-        const data = JSON.parse(text);
-        const tables = data.tables || data;
+  // Cada registro é importado isoladamente: um CNPJ duplicado não derruba o restante do backup.
+  async function handleImport(file?: File) {
+    if (importRef.current) importRef.current.value = '';
+    if (!file) return;
+    setBusy(true);
+    setNotice(null);
+    let ok = 0;
+    let failed = 0;
+    const run = async (fn: () => Promise<unknown>) => { try { await fn(); ok++; } catch { failed++; } };
+    const parseJson = (v: unknown) => { try { return typeof v === 'string' ? JSON.parse(v) : v; } catch { return undefined; } };
 
-        if (tables.configuracoes) {
-          for (const cfg of tables.configuracoes) {
-            await api.configuracoes.set(cfg.chave, cfg.valor);
-          }
-        }
+    try {
+      const data = JSON.parse(await file.text());
+      const tables = data.tables || data;
 
-        if (tables.clientes) {
-          for (const c of tables.clientes) {
-            const { id, dataCadastro, dataAtualizacao, celular, endereco, ...rest } = c;
-            const mapped: Record<string, unknown> = { ...rest };
-            if (c.endereco_cep) mapped.enderecoCep = c.endereco_cep;
-            if (c.endereco_logradouro) mapped.enderecoLogradouro = c.endereco_logradouro;
-            if (c.endereco_numero) mapped.enderecoNumero = c.endereco_numero;
-            if (c.endereco_complemento) mapped.enderecoComplemento = c.endereco_complemento;
-            if (c.endereco_bairro) mapped.enderecoBairro = c.endereco_bairro;
-            if (c.endereco_cidade) mapped.enderecoCidade = c.endereco_cidade;
-            if (c.endereco_estado) mapped.enderecoEstado = c.endereco_estado;
-            await api.clientes.create(mapped as any);
-          }
-        }
-
-        if (tables.industrias) {
-          for (const i of tables.industrias) {
-            const { id, dataCadastro, dataEdicao, ...rest } = i;
-            await api.industrias.create(rest);
-          }
-        }
-
-        if (tables.produtos) {
-          for (const p of tables.produtos) {
-            const { id, dataCadastro, dataAtualizacao, imagens, ...rest } = p;
-            let variacoes = undefined;
-            if (p.variacoes) {
-              try {
-                const parsed = typeof p.variacoes === 'string' ? JSON.parse(p.variacoes) : p.variacoes;
-                variacoes = parsed.map((v: any) => ({ tipo: v.tipo, valor: v.valor }));
-              } catch { /* skip */ }
-            }
-            await api.produtos.create({ ...rest, variacoes } as any);
-          }
-        }
-
-        if (tables.pedidos) {
-          for (const ped of tables.pedidos) {
-            const { desconto } = ped;
-            let produtos = undefined;
-            if (ped.produtos) {
-              try {
-                const parsed = typeof ped.produtos === 'string' ? JSON.parse(ped.produtos) : ped.produtos;
-                produtos = parsed.map((p: any) => ({
-                  nome: p.nome,
-                  preco: p.precoUnitario || p.preco,
-                  quantidade: p.quantidade || 1,
-                  descontoTipo: p.desconto?.tipo || undefined,
-                  descontoValor: p.desconto?.valor || undefined,
-                }));
-              } catch { /* skip */ }
-            }
-            let prazos = undefined;
-            if (ped.prazos) {
-              try {
-                prazos = typeof ped.prazos === 'string' ? JSON.parse(ped.prazos) : ped.prazos;
-              } catch { /* skip */ }
-            }
-            let descontoGeral = {};
-            if (ped.desconto_tipo) descontoGeral = { descontoTipo: ped.desconto_tipo, descontoValor: ped.desconto_valor };
-            else if (desconto) {
-              try {
-                const d = typeof desconto === 'string' ? JSON.parse(desconto) : desconto;
-                if (d.valor) descontoGeral = { descontoTipo: d.tipo, descontoValor: d.valor };
-              } catch { /* skip */ }
-            }
-            await api.pedidos.create({
-              cliente: ped.cliente,
-              total: ped.total,
-              metodoPagamento: ped.metodoPagamento,
-              observacoes: ped.observacoes || undefined,
-              status: ped.status || 'pendente',
-              ...descontoGeral,
-              produtos,
-              prazos,
-            } as any);
-          }
-        }
-
-        alert('Backup importado com sucesso!');
-      } catch {
-        alert('Erro ao importar backup. Verifique o arquivo.');
+      for (const cfg of tables.configuracoes ?? []) {
+        if (cfg?.chave) await run(() => api.configuracoes.set(cfg.chave, cfg.valor));
       }
-    };
-    input.click();
-  }
 
-  function handleClearData() {
-    if (window.confirm('Tem certeza que deseja apagar todos os dados? Esta acao nao pode ser desfeita.')) {
-      alert('Funcionalidade em desenvolvimento.');
+      for (const c of tables.clientes ?? []) {
+        const rest = omit(c, ["id", "dataCadastro", "dataAtualizacao", "celular", "endereco"]);
+        const mapped: Record<string, unknown> = { ...rest };
+        for (const [from, to] of Object.entries({
+          endereco_cep: 'enderecoCep', endereco_logradouro: 'enderecoLogradouro', endereco_numero: 'enderecoNumero',
+          endereco_complemento: 'enderecoComplemento', endereco_bairro: 'enderecoBairro', endereco_cidade: 'enderecoCidade', endereco_estado: 'enderecoEstado',
+        })) if (c[from]) mapped[to] = c[from];
+        await run(() => api.clientes.create(mapped as never));
+      }
+
+      for (const i of tables.industrias ?? []) {
+        const rest = omit(i, ["id", "dataCadastro", "dataEdicao"]);
+        await run(() => api.industrias.create(rest as never));
+      }
+
+      for (const p of tables.produtos ?? []) {
+        const { imagens, variacoes: rawVar } = p;
+        const rest = omit(p, ["id", "dataCadastro", "dataAtualizacao", "imagens", "variacoes"]);
+        const parsedVar = parseJson(rawVar);
+        const variacoes = Array.isArray(parsedVar) ? parsedVar.map((v: { tipo: string; valor: string }) => ({ tipo: v.tipo, valor: v.valor })) : undefined;
+        const imgs = Array.isArray(imagens) ? imagens.map((im: string | { imagem: string }) => (typeof im === 'string' ? im : im.imagem)) : undefined;
+        await run(() => api.produtos.create({ ...rest, variacoes, imagens: imgs } as never));
+      }
+
+      for (const ped of tables.pedidos ?? []) {
+        const parsedProd = parseJson(ped.produtos);
+        const produtos = Array.isArray(parsedProd)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ? parsedProd.map((p: Record<string, any>) => ({
+              nome: p.nome,
+              preco: p.precoUnitario || p.preco,
+              quantidade: p.quantidade || 1,
+              descontoTipo: p.desconto?.tipo || p.descontoTipo || undefined,
+              descontoValor: p.desconto?.valor || p.descontoValor || undefined,
+              variacaoTipo: p.variacaoTipo || undefined,
+              variacaoValor: p.variacaoValor || undefined,
+            }))
+          : undefined;
+        const prazos = parseJson(ped.prazos);
+        let descontoGeral = {};
+        const d = parseJson(ped.desconto) as { tipo?: string; valor?: string } | undefined;
+        if (ped.desconto_tipo || ped.descontoTipo) descontoGeral = { descontoTipo: ped.desconto_tipo || ped.descontoTipo, descontoValor: ped.desconto_valor || ped.descontoValor };
+        else if (d?.valor) descontoGeral = { descontoTipo: d.tipo, descontoValor: d.valor };
+        await run(() => api.pedidos.create({
+          cliente: ped.cliente, total: ped.total, metodoPagamento: ped.metodoPagamento,
+          observacoes: ped.observacoes || undefined, status: ped.status || 'pendente',
+          ...descontoGeral, produtos, prazos,
+        } as never));
+      }
+
+      setNotice(failed
+        ? { kind: 'error', text: `Importacao concluida: ${ok} registro(s) importado(s), ${failed} ignorado(s) (duplicados ou invalidos).` }
+        : { kind: 'ok', text: `Backup importado com sucesso (${ok} registro(s)).` });
+    } catch {
+      setNotice({ kind: 'error', text: 'Erro ao importar backup. Verifique o arquivo.' });
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
-    <div className="config">
+    <div className="config page-enter">
       <div className="config__header">
         <h1 className="config__title">Configuracoes</h1>
       </div>
 
-      {/* Notificacoes */}
-      <section className="config__section">
-        <h2 className="config__section-title">
-          <Bell size={18} />
-          Notificacoes
-        </h2>
-        <div className="config__section-body">
-          <div className="config__setting" onClick={() => handleToggle('notificacoesPedidos')}>
-            <div className="config__setting-info">
-              <span className="config__setting-title">Notificacoes de Pedidos</span>
-              <span className="config__setting-sub">Receber notificacoes sobre novos pedidos</span>
-            </div>
-            <div className={`config__toggle ${settings.notificacoesPedidos ? 'config__toggle--on' : ''}`}>
-              <div className="config__toggle-thumb" />
-            </div>
-          </div>
-          <div className="config__setting" onClick={() => handleToggle('notificacoesClientes')}>
-            <div className="config__setting-info">
-              <span className="config__setting-title">Notificacoes de Clientes</span>
-              <span className="config__setting-sub">Receber notificacoes sobre novos clientes</span>
-            </div>
-            <div className={`config__toggle ${settings.notificacoesClientes ? 'config__toggle--on' : ''}`}>
-              <div className="config__toggle-thumb" />
-            </div>
-          </div>
+      {notice && (
+        <div className={`config__notice config__notice--${notice.kind}`} role="status">
+          {notice.kind === 'ok' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+          <span>{notice.text}</span>
+          <button onClick={() => setNotice(null)} aria-label="Fechar aviso"><X size={14} /></button>
         </div>
-      </section>
-
-      {/* Aparencia */}
-      <section className="config__section">
-        <h2 className="config__section-title">
-          <Palette size={18} />
-          Aparencia
-        </h2>
-        <div className="config__section-body">
-          <div className="config__setting" onClick={() => handleToggle('temaEscuro')}>
-            <div className="config__setting-info">
-              <span className="config__setting-title">Tema Escuro</span>
-              <span className="config__setting-sub">Ativar modo escuro do aplicativo</span>
-            </div>
-            <div className={`config__toggle ${settings.temaEscuro ? 'config__toggle--on' : ''}`}>
-              <div className="config__toggle-thumb" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Dados da Empresa */}
-      <section className="config__section">
-        <h2 className="config__section-title">
-          <Building2 size={18} />
-          Dados da Empresa
-        </h2>
-        <div className="config__section-body">
-          <div className="config__setting config__setting--clickable" onClick={openCompanyModal}>
-            <div className="config__setting-info">
-              <span className="config__setting-title">Informacoes da Empresa</span>
-              <span className="config__setting-sub">{settings.empresaNome || 'Configure os dados da sua empresa'}</span>
-            </div>
-            <ChevronRight size={20} className="config__arrow" />
-          </div>
-        </div>
-      </section>
-
-      {/* Gerenciamento de Dados */}
-      <section className="config__section">
-        <h2 className="config__section-title">
-          <Database size={18} />
-          Gerenciamento de Dados
-        </h2>
-        <div className="config__section-body">
-          <div className="config__setting config__setting--clickable" onClick={async () => { await loadStats(); setShowStatsModal(true); }}>
-            <div className="config__setting-info">
-              <span className="config__setting-title">Estatisticas do Banco</span>
-              <span className="config__setting-sub">Ver quantidade de dados armazenados</span>
-            </div>
-            <BarChart3 size={20} className="config__arrow" />
-          </div>
-          <div className="config__setting config__setting--clickable" onClick={() => setShowExportModal(true)}>
-            <div className="config__setting-info">
-              <span className="config__setting-title">Exportar Banco de Dados</span>
-              <span className="config__setting-sub">Criar backup completo do banco de dados</span>
-            </div>
-            <Download size={20} className="config__arrow" />
-          </div>
-          <div className="config__setting config__setting--clickable" onClick={handleImport}>
-            <div className="config__setting-info">
-              <span className="config__setting-title">Importar Banco de Dados</span>
-              <span className="config__setting-sub">Restaurar backup do banco de dados</span>
-            </div>
-            <Upload size={20} className="config__arrow" />
-          </div>
-          <div className="config__setting config__setting--clickable" onClick={handleClearData}>
-            <div className="config__setting-info">
-              <span className="config__setting-title config__setting-title--danger">Limpar Todos os Dados</span>
-              <span className="config__setting-sub">Apagar todos os dados do aplicativo</span>
-            </div>
-            <Trash2 size={20} className="config__arrow config__arrow--danger" />
-          </div>
-        </div>
-      </section>
-
-      {/* Sobre */}
-      <section className="config__section">
-        <h2 className="config__section-title">
-          <Info size={18} />
-          Sobre
-        </h2>
-        <div className="config__section-body">
-          <div className="config__setting">
-            <div className="config__setting-info">
-              <span className="config__setting-title">Versao do Aplicativo</span>
-              <span className="config__setting-sub">1.0.0 (Web)</span>
-            </div>
-          </div>
-          <div className="config__setting">
-            <div className="config__setting-info">
-              <span className="config__setting-title">Banco de Dados</span>
-              <span className="config__setting-sub">PostgreSQL</span>
-            </div>
-          </div>
-          <div className="config__setting">
-            <div className="config__setting-info">
-              <span className="config__setting-title">Desenvolvido por</span>
-              <span className="config__setting-sub">SalesHub Team</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Modal Dados da Empresa */}
-      {showCompanyModal && (
-        <ModalPortal>
-          <div className="modal-overlay" onClick={() => setShowCompanyModal(false)}>
-            <div className="modal-container modal-container--lg" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <div className="modal-header__left">
-                  <Building2 size={20} />
-                  <h2 className="modal-title">Dados da Empresa</h2>
-                </div>
-                <button className="modal-close" onClick={() => setShowCompanyModal(false)}><span style={{ fontSize: 'var(--fs-xs)', color: 'var(--color-text-muted)' }}>Fechar</span></button>
-              </div>
-              <div className="modal-body">
-                <CustomInput
-                  label="Nome da Empresa"
-                  placeholder="Nome da sua empresa"
-                  value={tempCompanyData.nome}
-                  onChange={(e) => setTempCompanyData((p) => ({ ...p, nome: e.target.value }))}
-                />
-                <CustomInput
-                  label="CNPJ (Opcional)"
-                  placeholder="00.000.000/0000-00"
-                  value={tempCompanyData.cnpj}
-                  onChange={(e) => setTempCompanyData((p) => ({ ...p, cnpj: e.target.value }))}
-                />
-                <div className="form-grid form-grid--2">
-                  <CustomInput
-                    label="Email"
-                    type="email"
-                    placeholder="email@empresa.com"
-                    value={tempCompanyData.email}
-                    onChange={(e) => setTempCompanyData((p) => ({ ...p, email: e.target.value }))}
-                  />
-                  <CustomInput
-                    label="Telefone/Whatsapp"
-                    placeholder="(11) 99999-9999"
-                    value={tempCompanyData.telefone}
-                    onChange={(e) => setTempCompanyData((p) => ({ ...p, telefone: e.target.value }))}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Endereco</label>
-                  <textarea
-                    className="form-textarea"
-                    placeholder="Endereco completo da empresa"
-                    value={tempCompanyData.endereco}
-                    onChange={(e) => setTempCompanyData((p) => ({ ...p, endereco: e.target.value }))}
-                    rows={3}
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <CustomButton variant="ghost" onClick={() => setShowCompanyModal(false)}>Cancelar</CustomButton>
-                <CustomButton variant="primary" onClick={saveCompanyData}>Salvar</CustomButton>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
       )}
 
-      {/* Modal Estatisticas */}
-      {showStatsModal && (
-        <ModalPortal>
-          <div className="modal-overlay" onClick={() => setShowStatsModal(false)}>
-            <div className="modal-container" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <div className="modal-header__left">
-                  <BarChart3 size={20} />
-                  <h2 className="modal-title">Estatisticas do Banco</h2>
-                </div>
-                <button className="modal-close" onClick={() => setShowStatsModal(false)}><span style={{ fontSize: 'var(--fs-xs)', color: 'var(--color-text-muted)' }}>Fechar</span></button>
+      <section className="config__section">
+        <h2 className="config__section-title"><Bell size={18} /> Notificacoes</h2>
+        <div className="config__section-body">
+          <Setting title="Notificacoes de Pedidos" sub="Receber notificacoes sobre novos pedidos" role="switch" checked={settings.notificacoesPedidos}
+            onClick={() => handleToggle('notificacoesPedidos')} right={<Toggle on={settings.notificacoesPedidos} />} />
+          <Setting title="Notificacoes de Clientes" sub="Receber notificacoes sobre novos clientes" role="switch" checked={settings.notificacoesClientes}
+            onClick={() => handleToggle('notificacoesClientes')} right={<Toggle on={settings.notificacoesClientes} />} />
+        </div>
+      </section>
+
+      <section className="config__section">
+        <h2 className="config__section-title"><Palette size={18} /> Aparencia</h2>
+        <div className="config__section-body">
+          <Setting title="Tema Escuro" sub="Ativar modo escuro do aplicativo" role="switch" checked={dark}
+            onClick={toggleTheme} right={<Toggle on={dark} />} />
+        </div>
+      </section>
+
+      <section className="config__section">
+        <h2 className="config__section-title"><Building2 size={18} /> Dados da Empresa</h2>
+        <div className="config__section-body">
+          <Setting title="Informacoes da Empresa" sub={settings.empresaNome || 'Configure os dados da sua empresa (aparecem no PDF do pedido)'}
+            onClick={openCompanyModal} right={
+              settings.empresaLogoUri
+                ? <img className="config__logo-thumb" src={settings.empresaLogoUri} alt="Logo" />
+                : <ChevronRight size={20} className="config__arrow" />
+            } />
+        </div>
+      </section>
+
+      <section className="config__section">
+        <h2 className="config__section-title"><Database size={18} /> Gerenciamento de Dados</h2>
+        <div className="config__section-body">
+          <Setting title="Estatisticas do Banco" sub="Ver quantidade de dados armazenados" onClick={openStats} right={<BarChart3 size={20} className="config__arrow" />} />
+          <Setting title="Exportar Banco de Dados" sub="Criar backup completo do banco de dados" onClick={() => setModal('export')} right={<Download size={20} className="config__arrow" />} />
+          <Setting title={busy ? 'Importando...' : 'Importar Banco de Dados'} sub="Restaurar backup do banco de dados" onClick={() => !busy && importRef.current?.click()} right={<Upload size={20} className="config__arrow" />} />
+          <input ref={importRef} type="file" accept=".json,application/json" hidden onChange={(e) => handleImport(e.target.files?.[0])} />
+        </div>
+      </section>
+
+      <section className="config__section">
+        <h2 className="config__section-title"><Info size={18} /> Sobre</h2>
+        <div className="config__section-body">
+          <Setting title="Versao do Aplicativo" sub="1.0.0 (Web)" />
+          <Setting title="Banco de Dados" sub="PostgreSQL" />
+          <Setting title="Desenvolvido por" sub="SalesHub Team" />
+        </div>
+      </section>
+
+      {modal === 'company' && (
+        <Modal title="Dados da Empresa" icon={<Building2 size={20} />} large onClose={() => setModal(null)}
+          footer={<>
+            <span />
+            <div className="modal-footer__actions">
+              <CustomButton variant="ghost" onClick={() => setModal(null)} disabled={busy}>Cancelar</CustomButton>
+              <CustomButton variant="primary" onClick={saveCompanyData} disabled={busy}>{busy ? 'Salvando...' : 'Salvar'}</CustomButton>
+            </div>
+          </>}>
+          <div className="config__logo">
+            <div className="config__logo-preview">
+              {temp.logo ? <img src={temp.logo} alt="Logo da empresa" /> : <ImagePlus size={24} />}
+            </div>
+            <div className="config__logo-actions">
+              <span className="form-label">Logo (aparece no PDF)</span>
+              <div className="config__logo-buttons">
+                <CustomButton type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>{temp.logo ? 'Trocar' : 'Enviar logo'}</CustomButton>
+                {temp.logo && <CustomButton type="button" variant="ghost" size="sm" onClick={() => setTemp((p) => ({ ...p, logo: '' }))}>Remover</CustomButton>}
               </div>
-              <div className="modal-body">
-                <div className="config__stats-grid">
-                  <div className="config__stat-item">
-                    <span className="config__stat-value">{stats.clientes}</span>
-                    <span className="config__stat-label">Clientes</span>
-                  </div>
-                  <div className="config__stat-item">
-                    <span className="config__stat-value">{stats.produtos}</span>
-                    <span className="config__stat-label">Produtos</span>
-                  </div>
-                  <div className="config__stat-item">
-                    <span className="config__stat-value">{stats.industrias}</span>
-                    <span className="config__stat-label">Industrias</span>
-                  </div>
-                  <div className="config__stat-item">
-                    <span className="config__stat-value">{stats.pedidos}</span>
-                    <span className="config__stat-label">Pedidos</span>
-                  </div>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <CustomButton variant="ghost" onClick={() => setShowStatsModal(false)}>Fechar</CustomButton>
-              </div>
+              <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => handleLogo(e.target.files?.[0])} />
             </div>
           </div>
-        </ModalPortal>
+          <CustomInput label="Nome da Empresa" placeholder="Nome da sua empresa" value={temp.nome} onChange={(e) => setTemp((p) => ({ ...p, nome: e.target.value }))} />
+          <CustomInput label="CNPJ (Opcional)" placeholder="00.000.000/0000-00" value={temp.cnpj} inputMode="numeric" onChange={(e) => setTemp((p) => ({ ...p, cnpj: maskCnpj(e.target.value) }))} />
+          <div className="form-grid form-grid--2">
+            <CustomInput label="Email" type="email" placeholder="email@empresa.com" value={temp.email} onChange={(e) => setTemp((p) => ({ ...p, email: e.target.value }))} />
+            <CustomInput label="Telefone/Whatsapp" placeholder="(11) 99999-9999" value={temp.telefone} inputMode="tel" onChange={(e) => setTemp((p) => ({ ...p, telefone: maskPhone(e.target.value) }))} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Endereco</label>
+            <textarea className="form-textarea" placeholder="Endereco completo da empresa" value={temp.endereco} onChange={(e) => setTemp((p) => ({ ...p, endereco: e.target.value }))} rows={3} />
+          </div>
+        </Modal>
       )}
 
-      {/* Modal Exportar */}
-      {showExportModal && (
-        <ModalPortal>
-          <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
-            <div className="modal-container" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <div className="modal-header__left">
-                  <FileJson size={20} />
-                  <h2 className="modal-title">Exportar Banco de Dados</h2>
-                </div>
-                <button className="modal-close" onClick={() => setShowExportModal(false)}><span style={{ fontSize: 'var(--fs-xs)', color: 'var(--color-text-muted)' }}>Fechar</span></button>
+      {modal === 'stats' && (
+        <Modal title="Estatisticas do Banco" icon={<BarChart3 size={20} />} onClose={() => setModal(null)}
+          footer={<><span /><CustomButton variant="ghost" onClick={() => setModal(null)}>Fechar</CustomButton></>}>
+          <div className="config__stats-grid">
+            {([['clientes', 'Clientes'], ['produtos', 'Produtos'], ['industrias', 'Industrias'], ['pedidos', 'Pedidos']] as const).map(([k, label], i) => (
+              <div key={k} className="config__stat-item item-enter" style={{ animationDelay: `${i * 70}ms` }}>
+                <span className="config__stat-value">{stats[k]}</span>
+                <span className="config__stat-label">{label}</span>
               </div>
-              <div className="modal-body">
-                <p className="config__export-desc">
-                  Esta funcao ira criar um backup completo do banco de dados em formato JSON.
-                  O arquivo gerado contera todos os seus dados (clientes, produtos, pedidos, industrias e configuracoes)
-                  e podera ser usado para restaurar o banco posteriormente.
-                </p>
-              </div>
-              <div className="modal-footer">
-                <CustomButton variant="ghost" onClick={() => setShowExportModal(false)}>Cancelar</CustomButton>
-                <CustomButton variant="primary" icon={<Download size={14} />} onClick={handleExport}>Exportar</CustomButton>
-              </div>
-            </div>
+            ))}
           </div>
-        </ModalPortal>
+        </Modal>
+      )}
+
+      {modal === 'export' && (
+        <Modal title="Exportar Banco de Dados" icon={<FileJson size={20} />} onClose={() => setModal(null)}
+          footer={<>
+            <span />
+            <div className="modal-footer__actions">
+              <CustomButton variant="ghost" onClick={() => setModal(null)} disabled={busy}>Cancelar</CustomButton>
+              <CustomButton variant="primary" icon={<Download size={14} />} onClick={handleExport} disabled={busy}>{busy ? 'Exportando...' : 'Exportar'}</CustomButton>
+            </div>
+          </>}>
+          <p className="config__export-desc">
+            Esta funcao ira criar um backup completo do banco de dados em formato JSON.
+            O arquivo gerado contera todos os seus dados (clientes, produtos, pedidos, industrias e configuracoes)
+            e podera ser usado para restaurar o banco posteriormente.
+          </p>
+        </Modal>
       )}
     </div>
   );

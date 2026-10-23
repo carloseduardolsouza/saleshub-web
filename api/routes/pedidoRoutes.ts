@@ -1,8 +1,10 @@
 import { Router } from 'express';
+import { validateId } from '../middleware/validate.js';
 import { PedidoController } from '../controllers/PedidoController.js';
 import { generatePedidoPDF } from '../services/pdfGenerator.js';
 
 const pedidoRoutes = Router();
+pedidoRoutes.param('id', validateId);
 
 pedidoRoutes.get('/', PedidoController.index);
 pedidoRoutes.get('/:id/pdf', async (req, res) => {
@@ -16,7 +18,8 @@ pedidoRoutes.get('/:id/pdf', async (req, res) => {
     res.send(pdfBuffer);
   } catch (error: any) {
     console.error('Erro ao gerar PDF:', error);
-    res.status(500).json({ error: error.message || 'Erro ao gerar PDF' });
+    const notFound = error.message === 'Pedido nao encontrado';
+    res.status(notFound ? 404 : 500).json({ error: error.message || 'Erro ao gerar PDF' });
   }
 });
 pedidoRoutes.get('/:id', PedidoController.show);

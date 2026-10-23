@@ -1,7 +1,9 @@
 import { Router } from 'express';
+import { validateId } from '../middleware/validate.js';
 import { ProdutoController } from '../controllers/ProdutoController.js';
 
 const produtoRoutes = Router();
+produtoRoutes.param('id', validateId);
 
 produtoRoutes.get('/', ProdutoController.index);
 produtoRoutes.get('/:id', ProdutoController.show);

@@ -9,6 +9,7 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  X,
 } from 'lucide-react';
 import './sidebar.css';
 
@@ -26,19 +27,35 @@ const BOTTOM_ITEMS = [
 
 interface SidebarProps {
   collapsed: boolean;
+  mobileOpen?: boolean;
   onToggle: () => void;
+  onCloseMobile?: () => void;
+  onLogout?: () => void;
 }
 
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export function Sidebar({ collapsed, mobileOpen = false, onToggle, onCloseMobile, onLogout }: SidebarProps) {
+  const renderItem = (item: (typeof NAV_ITEMS)[number]) => (
+    <NavLink
+      key={item.to}
+      to={item.to}
+      title={collapsed ? item.label : undefined}
+      className={({ isActive }) => `sidebar-item ${isActive ? 'sidebar-item--active' : ''}`}
+    >
+      <item.icon size={20} />
+      <span className="sidebar-item__label">{item.label}</span>
+    </NavLink>
+  );
+
   return (
-    <aside className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''}`}>
+    <aside
+      className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''} ${mobileOpen ? 'sidebar--open' : ''}`}
+      aria-label="Menu principal"
+    >
       <div className="sidebar__header">
-        {!collapsed && (
-          <div className="sidebar__brand">
-            <span className="sidebar__brand-icon">S</span>
-            <span className="sidebar__brand-text">SalesHub</span>
-          </div>
-        )}
+        <div className="sidebar__brand">
+          <span className="sidebar__brand-icon">S</span>
+          <span className="sidebar__brand-text">SalesHub</span>
+        </div>
         <button
           className="sidebar__toggle"
           onClick={onToggle}
@@ -46,41 +63,26 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         >
           {collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
         </button>
+        <button
+          className="sidebar__close"
+          onClick={onCloseMobile}
+          aria-label="Fechar menu"
+        >
+          <X size={20} />
+        </button>
       </div>
 
-      <nav className="sidebar__nav">
-        {NAV_ITEMS.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            title={collapsed ? item.label : undefined}
-            className={({ isActive }) =>
-              `sidebar-item ${isActive ? 'sidebar-item--active' : ''}`
-            }
-          >
-            <item.icon size={20} />
-            {!collapsed && <span>{item.label}</span>}
-          </NavLink>
-        ))}
-      </nav>
+      <nav className="sidebar__nav">{NAV_ITEMS.map(renderItem)}</nav>
 
       <div className="sidebar__bottom">
-        {BOTTOM_ITEMS.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            title={collapsed ? item.label : undefined}
-            className={({ isActive }) =>
-              `sidebar-item ${isActive ? 'sidebar-item--active' : ''}`
-            }
-          >
-            <item.icon size={20} />
-            {!collapsed && <span>{item.label}</span>}
-          </NavLink>
-        ))}
-        <button className="sidebar-item sidebar-item--logout" title={collapsed ? 'Sair' : undefined}>
+        {BOTTOM_ITEMS.map(renderItem)}
+        <button
+          className="sidebar-item sidebar-item--logout"
+          title={collapsed ? 'Sair' : undefined}
+          onClick={onLogout}
+        >
           <LogOut size={20} />
-          {!collapsed && <span>Sair</span>}
+          <span className="sidebar-item__label">Sair</span>
         </button>
       </div>
     </aside>

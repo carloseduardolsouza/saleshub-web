@@ -1,4 +1,5 @@
-import pdf from 'html-pdf-node';
+import puppeteer from 'puppeteer-core';
+import { existsSync } from 'node:fs';
 import prisma from '../prisma.js';
 
 const METODO_PAGAMENTO: Record<string, string> = {
@@ -24,10 +25,19 @@ function formatarEndereco(c: any): string {
   return partes.length > 0 ? partes.join(', ') : 'N/A';
 }
 
+const esc = (v: unknown) =>
+  String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+
+const num = (v?: string | null) => parseFloat(String(v ?? '').replace(',', '.')) || 0;
+
+const TZ = 'America/Sao_Paulo';
+const fmtData = (d: Date) => d.toLocaleDateString('pt-BR', { timeZone: TZ });
+const fmtHora = (d: Date) => d.toLocaleTimeString('pt-BR', { timeZone: TZ });
+
 function calcular(preco: number, qtd: number, descontoTipo?: string | null, descontoValor?: string | null, mostrar = true): number {
   const total = preco * qtd;
   if (!mostrar || !descontoValor) return total;
-  const val = parseFloat(descontoValor.replace(',', '.')) || 0;
+  const val = num(descontoValor);
   const desc = descontoTipo === 'percentual' ? (total * val) / 100 : val;
   return Math.max(0, total - desc);
 }
@@ -56,16 +66,21 @@ export async function generatePedidoPDF(pedidoId: number, mostrarDescontos: bool
     enderecoComplemento: '', enderecoBairro: '', enderecoCidade: '', enderecoEstado: '', enderecoCep: '',
   } as any;
 
+  const html = buildPedidoHTML(pedido, cliente, config, mostrarDescontos);
+  return renderPDF(html);
+}
+
+export function buildPedidoHTML(pedido: any, cliente: any, config: Record<string, string>, mostrarDescontos: boolean): string {
   const enderecoFormatado = formatarEndereco(cliente);
 
-  const subtotalSemDescontos = pedido.produtos.reduce((s, p) => s + (p.preco * p.quantidade), 0);
+  const subtotalSemDescontos = pedido.produtos.reduce((s: number, p: any) => s + (p.preco * p.quantidade), 0);
 
   let descontosIndividuais = 0;
   if (mostrarDescontos) {
-    pedido.produtos.forEach((p) => {
+    pedido.produtos.forEach((p: any) => {
       const t = p.preco * p.quantidade;
       if (p.descontoValor) {
-        const v = parseFloat(p.descontoValor.replace(',', '.')) || 0;
+        const v = num(p.descontoValor);
         descontosIndividuais += p.descontoTipo === 'percentual' ? (t * v) / 100 : v;
       }
     });
@@ -74,14 +89,14 @@ export async function generatePedidoPDF(pedidoId: number, mostrarDescontos: bool
 
   let descontoGeral = 0;
   if (mostrarDescontos && pedido.descontoValor) {
-    const v = parseFloat(pedido.descontoValor.replace(',', '.')) || 0;
+    const v = num(pedido.descontoValor);
     descontoGeral = pedido.descontoTipo === 'percentual' ? (subtotalComDescontos * v) / 100 : v;
   }
 
   const totalFinal = mostrarDescontos ? pedido.total : subtotalSemDescontos;
   const metodoLabel = METODO_PAGAMENTO[pedido.metodoPagamento] || pedido.metodoPagamento;
 
-  const html = `
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -123,14 +138,14 @@ export async function generatePedidoPDF(pedidoId: number, mostrarDescontos: bool
 <body>
 
 <div class="header">
-  ${config.empresaLogoUri ? `<img src="${config.empresaLogoUri}" class="logo" />` : ''}
+  ${config.empresaLogoUri ? `<img src="${esc(config.empresaLogoUri)}" class="logo" />` : ''}
   <div>
-    <div class="company-name">${config.empresaNome || 'SUA EMPRESA'}</div>
+    <div class="company-name">${esc(config.empresaNome || 'SUA EMPRESA')}</div>
     <div class="company-info">
-      ${config.empresaCNPJ ? `<div>CNPJ: ${config.empresaCNPJ}</div>` : ''}
-      ${config.empresaTelefone ? `<div>Telefone: ${config.empresaTelefone}</div>` : ''}
-      ${config.empresaEmail ? `<div>Email: ${config.empresaEmail}</div>` : ''}
-      ${config.empresaEndereco ? `<div>Endereco: ${config.empresaEndereco}</div>` : ''}
+      ${config.empresaCNPJ ? `<div>CNPJ: ${esc(config.empresaCNPJ)}</div>` : ''}
+      ${config.empresaTelefone ? `<div>Telefone: ${esc(config.empresaTelefone)}</div>` : ''}
+      ${config.empresaEmail ? `<div>Email: ${esc(config.empresaEmail)}</div>` : ''}
+      ${config.empresaEndereco ? `<div>Endereco: ${esc(config.empresaEndereco)}</div>` : ''}
     </div>
   </div>
 </div>
@@ -140,19 +155,19 @@ export async function generatePedidoPDF(pedidoId: number, mostrarDescontos: bool
 <div class="info-row">
   <div class="info-col">
     <div class="info-col-title">Dados do Cliente</div>
-    <div class="info-line"><strong>Nome:</strong> ${cliente.nomeFantasia || 'N/A'}</div>
-    <div class="info-line"><strong>Razao Social:</strong> ${cliente.razaoSocial || 'N/A'}</div>
-    <div class="info-line"><strong>CNPJ:</strong> ${cliente.cnpj || 'N/A'}</div>
-    <div class="info-line"><strong>Inscricao Estadual:</strong> ${cliente.inscricaoEstadual || 'N/A'}</div>
-    <div class="info-line"><strong>Endereco:</strong> ${enderecoFormatado}</div>
-    <div class="info-line"><strong>Telefone:</strong> ${cliente.telefoneEmpresa || 'N/A'}</div>
-    <div class="info-line"><strong>Email:</strong> ${cliente.emailEmpresa || 'N/A'}</div>
+    <div class="info-line"><strong>Nome:</strong> ${esc(cliente.nomeFantasia || 'N/A')}</div>
+    <div class="info-line"><strong>Razao Social:</strong> ${esc(cliente.razaoSocial || 'N/A')}</div>
+    <div class="info-line"><strong>CNPJ:</strong> ${esc(cliente.cnpj || 'N/A')}</div>
+    <div class="info-line"><strong>Inscricao Estadual:</strong> ${esc(cliente.inscricaoEstadual || 'N/A')}</div>
+    <div class="info-line"><strong>Endereco:</strong> ${esc(enderecoFormatado)}</div>
+    <div class="info-line"><strong>Telefone:</strong> ${esc(cliente.telefoneEmpresa || cliente.telefone || 'N/A')}</div>
+    <div class="info-line"><strong>Email:</strong> ${esc(cliente.emailEmpresa || cliente.email || 'N/A')}</div>
   </div>
   <div class="info-col">
     <div class="info-col-title">Dados do Pedido</div>
-    <div class="info-line"><strong>Data:</strong> ${pedido.data.toLocaleDateString('pt-BR')}</div>
-    <div class="info-line"><strong>Hora:</strong> ${pedido.data.toLocaleTimeString('pt-BR')}</div>
-    <div class="info-line"><strong>Metodo de Pagamento:</strong> ${metodoLabel}</div>
+    <div class="info-line"><strong>Data:</strong> ${fmtData(pedido.data)}</div>
+    <div class="info-line"><strong>Hora:</strong> ${fmtHora(pedido.data)}</div>
+    <div class="info-line"><strong>Metodo de Pagamento:</strong> ${esc(metodoLabel)}</div>
   </div>
 </div>
 
@@ -166,13 +181,13 @@ export async function generatePedidoPDF(pedidoId: number, mostrarDescontos: bool
     </tr>
   </thead>
   <tbody>
-    ${pedido.produtos.map((p) => {
+    ${pedido.produtos.map((p: any) => {
       const precoFinal = calcular(p.preco, p.quantidade, p.descontoTipo, p.descontoValor, mostrarDescontos);
       return `<tr>
         <td>
-          ${p.nome}
-          ${p.variacaoValor ? `<div class="variation">${p.variacaoTipo === 'cor' ? 'Cor' : 'Tam'}: ${p.variacaoValor}</div>` : ''}
-          ${mostrarDescontos && p.descontoValor ? `<div class="discount">Desc: ${p.descontoTipo === 'percentual' ? p.descontoValor + '%' : formatBRL(parseFloat(p.descontoValor))}</div>` : ''}
+          ${esc(p.nome)}
+          ${p.variacaoValor ? `<div class="variation">${p.variacaoTipo === 'cor' ? 'Cor' : 'Tam'}: ${esc(p.variacaoValor)}</div>` : ''}
+          ${mostrarDescontos && p.descontoValor ? `<div class="discount">Desc: ${p.descontoTipo === 'percentual' ? esc(p.descontoValor) + '%' : formatBRL(num(p.descontoValor))}</div>` : ''}
         </td>
         <td class="text-center">${p.quantidade}</td>
         <td class="text-right">${formatBRL(p.preco)}</td>
@@ -196,11 +211,11 @@ export async function generatePedidoPDF(pedidoId: number, mostrarDescontos: bool
 
 <div class="payment">
   <div class="payment-title">Condicoes de Pagamento</div>
-  <div class="info-line"><strong>Metodo:</strong> ${metodoLabel}</div>
+  <div class="info-line"><strong>Metodo:</strong> ${esc(metodoLabel)}</div>
   ${pedido.metodoPagamento === 'boleto' && pedido.prazos.length > 0 ? `
     <div style="margin-top:10px">
       <strong>Parcelas:</strong>
-      ${pedido.prazos.map((pr, i) => `<div class="installment"><strong>${i + 1} Parcela:</strong> ${pr.dias} dias</div>`).join('')}
+      ${pedido.prazos.map((pr: any, i: number) => `<div class="installment"><strong>${i + 1} Parcela:</strong> ${esc(pr.dias)} dias</div>`).join('')}
     </div>
   ` : ''}
 </div>
@@ -208,22 +223,46 @@ export async function generatePedidoPDF(pedidoId: number, mostrarDescontos: bool
 ${pedido.observacoes ? `
 <div class="obs">
   <div class="obs-title">Observacoes</div>
-  <div class="obs-text">${pedido.observacoes}</div>
+  <div class="obs-text">${esc(pedido.observacoes).replace(/\n/g, '<br>')}</div>
 </div>
 ` : ''}
 
-<div class="footer">Documento gerado por SalesHub em ${new Date().toLocaleDateString('pt-BR')} as ${new Date().toLocaleTimeString('pt-BR')}</div>
+<div class="footer">Documento gerado por SalesHub em ${fmtData(new Date())} as ${fmtHora(new Date())}</div>
 
 </body>
 </html>`;
+}
 
-  const file = { content: html };
-  const options = {
-    format: 'A4' as const,
-    margin: { top: '8mm', right: '6mm', bottom: '8mm', left: '6mm' },
-    printBackground: true,
-  };
+function chromePath(): string {
+  const candidates = [
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+  ];
+  const found = candidates.find((p) => p && existsSync(p));
+  if (!found) throw new Error('Chrome/Chromium nao encontrado. Defina PUPPETEER_EXECUTABLE_PATH');
+  return found;
+}
 
-  const pdfBuffer = await pdf.generatePdf(file, options);
-  return pdfBuffer;
+export async function renderPDF(html: string): Promise<Buffer> {
+  const browser = await puppeteer.launch({
+    executablePath: chromePath(),
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+  });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'load' });
+    const data = await page.pdf({
+      format: 'A4',
+      margin: { top: '8mm', right: '6mm', bottom: '8mm', left: '6mm' },
+      printBackground: true,
+    });
+    return Buffer.from(data);
+  } finally {
+    await browser.close();
+  }
 }

@@ -1,14 +1,15 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit2, Trash2, Building, Phone, Mail, Filter, Check } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Plus, Edit2, Trash2, Building, Phone, Mail, Filter, Check, Search, X, AlertCircle } from 'lucide-react';
 import { CustomButton } from '../../components/custom-button';
-import { CustomInput } from '../../components/custom-input';
 import { CustomTable, type TableColumn } from '../../components/custom-table';
 import { NewIndustriaModal } from './NewIndustriaModal';
 import { EditIndustriaModal } from './EditIndustriaModal';
 import { DetailsIndustriaModal } from './DetailsIndustriaModal';
 import { api, type Industria } from '../../api/client';
 import '../../styles/modal.css';
-import './Industrias.css';
+import '../pages-common.css';
+import './industrias.css';
+import './industrias-extra.css';
 
 const AVAILABLE_FIELDS = [
   { key: 'nome', label: 'Nome da Industria' },
@@ -33,6 +34,7 @@ function renderField(value: string | undefined, fieldKey: string): React.ReactNo
 export function Industrias() {
   const [industrias, setIndustrias] = useState<Industria[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [selectedFields, setSelectedFields] = useState<string[]>(['nome', 'cnpj', 'telefoneComercial']);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -41,35 +43,28 @@ export function Industrias() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedIndustria, setSelectedIndustria] = useState<Industria | null>(null);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
-      const data = await api.industrias.getAll();
-      setIndustrias(data);
-    } catch {
-      console.error('Erro ao carregar industrias');
+      setIndustrias(await api.industrias.getAll());
+      setLoadError('');
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Erro ao carregar industrias');
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [loadData]);
 
-  function isCNPJ(text: string): boolean {
-    const cleanText = text.replace(/\D/g, '');
-    return cleanText.length >= 11 && /^\d+$/.test(cleanText);
-  }
-
-  const filtered = industrias.filter((industria) => {
-    if (!search.trim()) return true;
-    const searchLower = search.toLowerCase().trim();
-    if (isCNPJ(search)) {
-      const cnpjNumbers = industria.cnpj.replace(/\D/g, '');
-      const searchNumbers = search.replace(/\D/g, '');
-      return cnpjNumbers.includes(searchNumbers);
-    }
-    return industria.nome.toLowerCase().includes(searchLower);
-  });
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    const qDigits = q.replace(/\D/g, '');
+    if (!q) return industrias;
+    return industrias.filter((i) =>
+      i.nome.toLowerCase().includes(q) || (qDigits.length > 0 && i.cnpj.replace(/\D/g, '').includes(qDigits))
+    );
+  }, [industrias, search]);
 
   function toggleField(fieldKey: string) {
     if (selectedFields.includes(fieldKey)) {
@@ -98,8 +93,8 @@ export function Industrias() {
       await api.industrias.delete(industria.id!);
       setIndustrias((prev) => prev.filter((i) => i.id !== industria.id));
       setShowDetailsModal(false);
-    } catch {
-      alert('Erro ao excluir industria');
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Erro ao excluir industria');
     }
   }
 
@@ -124,10 +119,10 @@ export function Industrias() {
         align: 'center' as const,
         render: (row) => (
           <div className="ct-actions" onClick={(e) => e.stopPropagation()}>
-            <button className="icon-btn" title="Editar" onClick={() => handleEdit(row)}>
+            <button className="icon-btn" title="Editar" aria-label="Editar" onClick={() => handleEdit(row)}>
               <Edit2 size={15} />
             </button>
-            <button className="icon-btn icon-btn--danger" title="Excluir" onClick={() => handleDelete(row)}>
+            <button className="icon-btn icon-btn--danger" title="Excluir" aria-label="Excluir" onClick={() => handleDelete(row)}>
               <Trash2 size={15} />
             </button>
           </div>
@@ -136,31 +131,34 @@ export function Industrias() {
     ];
   }, [selectedFields]);
 
-  if (loading) {
-    return <div className="industrias"><p>Carregando...</p></div>;
-  }
-
   return (
-    <div className="industrias">
+    <div className="industrias page-enter">
       <div className="industrias__header">
-        <h1 className="industrias__title">Industrias</h1>
+        <div>
+          <h1 className="industrias__title">Industrias</h1>
+          <p className="industrias__subtitle">Fabricantes e fornecedores dos seus produtos</p>
+        </div>
         <CustomButton variant="primary" icon={<Plus size={16} />} onClick={() => setShowNewModal(true)}>
           Nova Industria
         </CustomButton>
       </div>
 
       <div className="industrias__filters">
-        <div className="industrias__search">
-          <CustomInput
-            placeholder="Buscar por nome ou CNPJ..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <button className="icon-btn" title="Filtrar colunas" onClick={() => setShowFilterModal(true)}>
+        <label className="industrias__search">
+          <Search size={16} />
+          <input placeholder="Buscar por nome ou CNPJ..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        </label>
+        <button className="icon-btn" title="Filtrar colunas" aria-label="Filtrar colunas" onClick={() => setShowFilterModal(true)}>
           <Filter size={16} />
         </button>
       </div>
+
+      {loadError && (
+        <div className="order-alert" role="alert">
+          <AlertCircle size={16} /> {loadError}
+          <button className="industrias__retry" onClick={() => { setLoading(true); loadData(); }}>Tentar novamente</button>
+        </div>
+      )}
 
       <div className="industrias__counter">
         {filtered.length} industria(s) encontrada(s)
@@ -169,6 +167,7 @@ export function Industrias() {
       <CustomTable<Industria>
         columns={columns}
         data={filtered}
+        loading={loading}
         rowKey={(row) => row.id!}
         emptyTitle="Nenhuma industria encontrada"
         emptyDescription='Clique em "Nova Industria" para cadastrar'
@@ -183,18 +182,18 @@ export function Industrias() {
               <div className="modal-header__left">
                 <h2 className="modal-title">Selecionar Colunas</h2>
               </div>
-              <button className="modal-close" onClick={() => setShowFilterModal(false)}>
-                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--color-text-muted)' }}>Fechar</span>
+              <button className="modal-close" onClick={() => setShowFilterModal(false)} aria-label="Fechar">
+                <X size={18} />
               </button>
             </div>
             <div className="modal-body">
               {AVAILABLE_FIELDS.map((field) => (
-                <label key={field.key} className="industrias__field-option" onClick={() => toggleField(field.key)}>
+                <button type="button" key={field.key} className="industrias__field-option" onClick={() => toggleField(field.key)} role="checkbox" aria-checked={selectedFields.includes(field.key)}>
                   <span className="industrias__field-label">{field.label}</span>
                   <div className={`industrias__checkbox ${selectedFields.includes(field.key) ? 'industrias__checkbox--selected' : ''}`}>
                     {selectedFields.includes(field.key) && <Check size={14} />}
                   </div>
-                </label>
+                </button>
               ))}
               <p className="industrias__field-count">
                 {selectedFields.length} de {AVAILABLE_FIELDS.length} colunas selecionadas
@@ -205,7 +204,7 @@ export function Industrias() {
       )}
 
       <NewIndustriaModal open={showNewModal} onClose={() => { setShowNewModal(false); loadData(); }} />
-      <EditIndustriaModal open={showEditModal} industria={selectedIndustria} onClose={() => { setShowEditModal(false); loadData(); }} />
+      <EditIndustriaModal open={showEditModal} industria={selectedIndustria} onClose={() => { setShowEditModal(false); setSelectedIndustria(null); loadData(); }} />
       <DetailsIndustriaModal
         open={showDetailsModal}
         industria={selectedIndustria}

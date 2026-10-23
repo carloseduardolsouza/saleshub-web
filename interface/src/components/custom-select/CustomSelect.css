@@ -1,29 +1,38 @@
 .select {
   width: 100%;
-  padding: var(--space-3) var(--space-5);
+  padding: var(--space-4) var(--space-6);
   font-size: var(--fs-sm);
   border: var(--border-width) solid var(--color-border-strong);
   border-radius: var(--radius-md);
-  background: var(--color-bg-base);
+  background-color: var(--color-bg-base);
   color: var(--color-text-primary);
   outline: none;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A94A6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right var(--space-4) center;
-  padding-right: var(--space-8);
+  background-position: right var(--space-5) center;
+  padding-right: var(--space-10);
   cursor: pointer;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition: border-color var(--dur-fast) ease, box-shadow var(--dur-base) ease;
+}
+
+.select:hover:not(:focus):not(:disabled) {
+  border-color: var(--color-text-muted);
 }
 
 .select:focus {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.35);
+  box-shadow: var(--focus-ring);
+}
+
+.select:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .select--error {
   border-color: var(--color-danger);
 }
 .select--error:focus {
-  box-shadow: 0 0 0 2px rgba(214, 69, 69, 0.25);
+  box-shadow: 0 0 0 3px rgba(214, 69, 69, 0.25);
 }

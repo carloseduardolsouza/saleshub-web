@@ -77,11 +77,16 @@ export const PedidoModel = {
     });
   },
 
-  async update(id: number, data: PedidoInput) {
-    await prisma.pedidoProduto.deleteMany({ where: { pedidoId: id } });
-    await prisma.pedidoPrazo.deleteMany({ where: { pedidoId: id } });
+  async updateStatus(id: number, status: string) {
+    return prisma.pedido.update({ where: { id }, data: { status }, include: { produtos: true, prazos: true } });
+  },
 
-    return prisma.pedido.update({
+  async update(id: number, data: PedidoInput) {
+    return prisma.$transaction(async (tx) => {
+    await tx.pedidoProduto.deleteMany({ where: { pedidoId: id } });
+    await tx.pedidoPrazo.deleteMany({ where: { pedidoId: id } });
+
+    return tx.pedido.update({
       where: { id },
       data: {
         cliente: data.cliente,
@@ -90,7 +95,7 @@ export const PedidoModel = {
         descontoValor: data.descontoValor || null,
         metodoPagamento: data.metodoPagamento,
         observacoes: data.observacoes || null,
-        status: data.status || 'pendente',
+        status: data.status, // undefined preserva o status atual
         produtos: data.produtos
           ? {
               create: data.produtos.map((p) => ({
@@ -111,11 +116,10 @@ export const PedidoModel = {
       },
       include: { produtos: true, prazos: true },
     });
+    });
   },
 
   async delete(id: number) {
-    await prisma.pedidoProduto.deleteMany({ where: { pedidoId: id } });
-    await prisma.pedidoPrazo.deleteMany({ where: { pedidoId: id } });
-    return prisma.pedido.delete({ where: { id } });
+    return prisma.pedido.delete({ where: { id } }); // filhos removidos por onDelete: Cascade
   },
 };

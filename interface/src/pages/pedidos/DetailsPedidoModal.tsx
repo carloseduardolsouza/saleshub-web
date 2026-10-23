@@ -1,46 +1,55 @@
 import { useState } from 'react';
-import { X, Eye, Trash2, Tag, FileDown } from 'lucide-react';
+import { X, Eye, Trash2, Tag, FileDown, AlertCircle } from 'lucide-react';
 import { CustomButton } from '../../components/custom-button';
 import { ModalPortal } from '../../components/modal-portal';
 import { api, type Pedido } from '../../api/client';
+import { STATUS_PEDIDO, formatBRL, formatDescontoLabel, labelMetodo } from './pedidoUtils';
 
 interface DetailsPedidoModalProps {
   open: boolean;
   pedido: Pedido | null;
   onClose: () => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: number) => Promise<boolean>;
+  onStatusChange: (pedido: Pedido) => void;
 }
 
-export function DetailsPedidoModal({ open, pedido, onClose, onDelete }: DetailsPedidoModalProps) {
-  const [exporting, setExporting] = useState(false);
+export function DetailsPedidoModal({ open, pedido, onClose, onDelete, onStatusChange }: DetailsPedidoModalProps) {
+  const [exporting, setExporting] = useState<'com' | 'sem' | null>(null);
+  const [error, setError] = useState('');
 
   if (!open || !pedido) return null;
 
-  function formatPrice(value: number) {
-    return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-  }
-
-  function formatDate(date?: string) {
-    if (!date) return '-';
-    return new Date(date).toLocaleDateString('pt-BR');
-  }
+  const formatDate = (date?: string) => (date ? new Date(date).toLocaleDateString('pt-BR') : '-');
 
   async function handleExportPDF(mostrarDescontos: boolean) {
     if (!pedido?.id) return;
-    setExporting(true);
+    setError('');
+    setExporting(mostrarDescontos ? 'com' : 'sem');
     try {
       await api.pedidos.downloadPDF(pedido.id, mostrarDescontos);
-    } catch {
-      alert('Erro ao gerar PDF');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao gerar PDF');
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   }
 
-  function promptExportPDF() {
-    const opcao = window.confirm('Deseja gerar o PDF com descontos visiveis?\n\nOK = Com Descontos\nCancelar = Sem Descontos');
-    handleExportPDF(opcao);
+  async function handleStatus(status: string) {
+    if (!pedido?.id) return;
+    setError('');
+    try {
+      const updated = await api.pedidos.updateStatus(pedido.id, status);
+      onStatusChange(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao atualizar status');
+    }
   }
+
+  async function handleDelete() {
+    if (await onDelete(pedido!.id!)) onClose();
+  }
+
+  const status = pedido.status || 'pendente';
 
   return (
     <ModalPortal>
@@ -51,7 +60,7 @@ export function DetailsPedidoModal({ open, pedido, onClose, onDelete }: DetailsP
               <Eye size={20} />
               <h2 className="modal-title">Detalhes do Pedido #{pedido.id}</h2>
             </div>
-            <button className="modal-close" onClick={onClose}><X size={18} /></button>
+            <button className="modal-close" onClick={onClose} aria-label="Fechar"><X size={18} /></button>
           </div>
 
           <div className="modal-body">
@@ -68,7 +77,18 @@ export function DetailsPedidoModal({ open, pedido, onClose, onDelete }: DetailsP
                 </div>
                 <div className="details-item">
                   <span className="details-item__label">Pagamento</span>
-                  <span className="details-item__value">{pedido.metodoPagamento}</span>
+                  <span className="details-item__value">{labelMetodo(pedido.metodoPagamento)}</span>
+                </div>
+                <div className="details-item">
+                  <span className="details-item__label">Status</span>
+                  <select
+                    className={`status-select status-badge--${status}`}
+                    value={status}
+                    onChange={(e) => handleStatus(e.target.value)}
+                    aria-label="Status do pedido"
+                  >
+                    {STATUS_PEDIDO.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
                 </div>
               </div>
             </div>
@@ -78,16 +98,21 @@ export function DetailsPedidoModal({ open, pedido, onClose, onDelete }: DetailsP
                 <h3 className="form-section__title">Produtos ({pedido.produtos.length})</h3>
                 <div className="pedido-detalhes-produtos">
                   {pedido.produtos.map((p, idx) => (
-                    <div key={idx} className="pedido-detalhes-produto-item">
+                    <div key={p.id ?? idx} className="pedido-detalhes-produto-item" style={{ animationDelay: `${idx * 40}ms` }}>
                       <div className="pedido-detalhes-produto-info">
-                        <span className="pedido-detalhes-produto-nome">{p.nome}</span>
+                        <span className="pedido-detalhes-produto-nome">
+                          {p.nome}
+                          {p.variacaoValor && (
+                            <small className="pedido-detalhes-variacao"> · {p.variacaoTipo === 'cor' ? 'Cor' : 'Tam'}: {p.variacaoValor}</small>
+                          )}
+                        </span>
                         <span className="pedido-detalhes-produto-qtd">x{p.quantidade}</span>
                       </div>
                       <div className="pedido-detalhes-produto-valores">
-                        <span>{formatPrice(p.preco)}</span>
+                        <span>{formatBRL(p.preco)}</span>
                         {p.descontoValor && (
                           <span className="pedido-detalhes-desconto">
-                            <Tag size={12} /> -{p.descontoTipo === 'percentual' ? `${p.descontoValor}%` : formatPrice(parseFloat(p.descontoValor))}
+                            <Tag size={12} /> -{formatDescontoLabel(p.descontoTipo, p.descontoValor)}
                           </span>
                         )}
                       </div>
@@ -102,7 +127,7 @@ export function DetailsPedidoModal({ open, pedido, onClose, onDelete }: DetailsP
                 <h3 className="form-section__title">Prazos de Pagamento</h3>
                 <div className="pedido-detalhes-prazos">
                   {pedido.prazos.map((prazo, idx) => (
-                    <span key={idx} className="pedido-detalhes-prazo-item">{prazo.dias} dias</span>
+                    <span key={prazo.id ?? idx} className="pedido-detalhes-prazo-item">{prazo.dias} dias</span>
                   ))}
                 </div>
               </div>
@@ -114,14 +139,12 @@ export function DetailsPedidoModal({ open, pedido, onClose, onDelete }: DetailsP
                 {pedido.descontoValor && (
                   <div className="pedido-detalhes-resumo-linha">
                     <span>Desconto Geral:</span>
-                    <span className="pedido-detalhes-desconto">
-                      -{pedido.descontoTipo === 'percentual' ? `${pedido.descontoValor}%` : formatPrice(parseFloat(pedido.descontoValor))}
-                    </span>
+                    <span className="pedido-detalhes-desconto">-{formatDescontoLabel(pedido.descontoTipo, pedido.descontoValor)}</span>
                   </div>
                 )}
                 <div className="pedido-detalhes-resumo-linha pedido-detalhes-resumo-total">
                   <span>Total:</span>
-                  <span>{formatPrice(pedido.total)}</span>
+                  <span>{formatBRL(pedido.total)}</span>
                 </div>
               </div>
             </div>
@@ -132,19 +155,23 @@ export function DetailsPedidoModal({ open, pedido, onClose, onDelete }: DetailsP
                 <p className="pedido-detalhes-observacoes">{pedido.observacoes}</p>
               </div>
             )}
+
+            {error && <div className="order-alert" role="alert"><AlertCircle size={16} /> {error}</div>}
           </div>
 
-          <div className="modal-footer">
+          <div className="modal-footer pedido-detalhes-footer">
             <div className="modal-footer__left">
-              <CustomButton variant="danger" icon={<Trash2 size={14} />} onClick={() => { onDelete(pedido.id!); onClose(); }}>
+              <CustomButton variant="danger" icon={<Trash2 size={14} />} onClick={handleDelete}>
                 Excluir
               </CustomButton>
             </div>
             <div className="modal-footer__actions">
-              <CustomButton variant="outline" icon={<FileDown size={14} />} onClick={promptExportPDF} disabled={exporting}>
-                {exporting ? 'Gerando...' : 'Exportar PDF'}
+              <CustomButton variant="outline" icon={<FileDown size={14} />} onClick={() => handleExportPDF(false)} disabled={!!exporting}>
+                {exporting === 'sem' ? 'Gerando...' : 'PDF sem descontos'}
               </CustomButton>
-              <CustomButton variant="ghost" onClick={onClose}>Fechar</CustomButton>
+              <CustomButton variant="primary" icon={<FileDown size={14} />} onClick={() => handleExportPDF(true)} disabled={!!exporting}>
+                {exporting === 'com' ? 'Gerando...' : 'PDF com descontos'}
+              </CustomButton>
             </div>
           </div>
         </div>

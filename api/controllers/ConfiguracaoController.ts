@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { fail } from '../middleware/validate.js';
 import { ConfiguracaoModel } from '../models/Configuracao.js';
 
 export const ConfiguracaoController = {
@@ -7,7 +8,7 @@ export const ConfiguracaoController = {
       const config = await ConfiguracaoModel.getAll();
       return res.json(config);
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao buscar configuracoes' });
+      return fail(res, error, 'Erro ao buscar configuracoes');
     }
   },
 
@@ -17,7 +18,7 @@ export const ConfiguracaoController = {
       const valor = await ConfiguracaoModel.get(chave);
       return res.json({ chave, valor });
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao buscar configuracao' });
+      return fail(res, error, 'Erro ao buscar configuracao');
     }
   },
 
@@ -30,7 +31,7 @@ export const ConfiguracaoController = {
       await ConfiguracaoModel.set(chave, String(valor));
       return res.status(201).json({ chave, valor });
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao salvar configuracao' });
+      return fail(res, error, 'Erro ao salvar configuracao');
     }
   },
 
@@ -40,7 +41,7 @@ export const ConfiguracaoController = {
       await ConfiguracaoModel.delete(chave);
       return res.status(204).send();
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao deletar configuracao' });
+      return fail(res, error, 'Erro ao deletar configuracao');
     }
   },
 };

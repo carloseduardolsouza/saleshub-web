@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { fail } from '../middleware/validate.js';
 import { IndustriaModel } from '../models/Industria.js';
 
 export const IndustriaController = {
@@ -7,7 +8,7 @@ export const IndustriaController = {
       const industrias = await IndustriaModel.getAll();
       return res.json(industrias);
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao buscar industrias' });
+      return fail(res, error, 'Erro ao buscar industrias');
     }
   },
 
@@ -17,7 +18,7 @@ export const IndustriaController = {
       if (!industria) return res.status(404).json({ error: 'Industria nao encontrada' });
       return res.json(industria);
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao buscar industria' });
+      return fail(res, error, 'Erro ao buscar industria');
     }
   },
 
@@ -44,7 +45,7 @@ export const IndustriaController = {
       const industria = await IndustriaModel.create(req.body);
       return res.status(201).json(industria);
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao criar industria' });
+      return fail(res, error, 'Erro ao criar industria');
     }
   },
 
@@ -75,7 +76,7 @@ export const IndustriaController = {
       const industria = await IndustriaModel.update(id, req.body);
       return res.json(industria);
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao atualizar industria' });
+      return fail(res, error, 'Erro ao atualizar industria');
     }
   },
 
@@ -88,7 +89,7 @@ export const IndustriaController = {
       await IndustriaModel.delete(id);
       return res.status(204).send();
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao deletar industria' });
+      return fail(res, error, 'Erro ao deletar industria');
     }
   },
 };

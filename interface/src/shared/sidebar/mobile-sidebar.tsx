@@ -4,7 +4,7 @@ import {
   ShoppingCart,
   Package,
   Users,
-  Settings,
+  Menu,
 } from 'lucide-react';
 import './mobile-sidebar.css';
 
@@ -13,12 +13,16 @@ const MOBILE_NAV_ITEMS = [
   { to: '/pedidos', label: 'Pedidos', icon: ShoppingCart },
   { to: '/produtos', label: 'Produtos', icon: Package },
   { to: '/clientes', label: 'Clientes', icon: Users },
-  { to: '/configuracoes', label: 'Config', icon: Settings },
 ];
 
-export function MobileSidebar() {
+interface MobileSidebarProps {
+  /** Abre o drawer com Industrias, Configuracoes e Sair. */
+  onMore: () => void;
+}
+
+export function MobileSidebar({ onMore }: MobileSidebarProps) {
   return (
-    <nav className="mobile-nav">
+    <nav className="mobile-nav" aria-label="Navegacao rapida">
       {MOBILE_NAV_ITEMS.map((item) => (
         <NavLink
           key={item.to}
@@ -31,6 +35,10 @@ export function MobileSidebar() {
           <span className="mobile-nav__label">{item.label}</span>
         </NavLink>
       ))}
+      <button type="button" className="mobile-nav__item" onClick={onMore}>
+        <Menu size={22} strokeWidth={2} />
+        <span className="mobile-nav__label">Mais</span>
+      </button>
     </nav>
   );
 }

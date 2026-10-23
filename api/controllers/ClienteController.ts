@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { fail } from '../middleware/validate.js';
 import { ClienteModel } from '../models/Cliente.js';
 
 export const ClienteController = {
@@ -7,7 +8,7 @@ export const ClienteController = {
       const clientes = await ClienteModel.getAll();
       return res.json(clientes);
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao buscar clientes' });
+      return fail(res, error, 'Erro ao buscar clientes');
     }
   },
 
@@ -17,7 +18,7 @@ export const ClienteController = {
       if (!cliente) return res.status(404).json({ error: 'Cliente nao encontrado' });
       return res.json(cliente);
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao buscar cliente' });
+      return fail(res, error, 'Erro ao buscar cliente');
     }
   },
 
@@ -30,7 +31,7 @@ export const ClienteController = {
       const cliente = await ClienteModel.create(req.body);
       return res.status(201).json(cliente);
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao criar cliente' });
+      return fail(res, error, 'Erro ao criar cliente');
     }
   },
 
@@ -48,7 +49,7 @@ export const ClienteController = {
       const cliente = await ClienteModel.update(id, req.body);
       return res.json(cliente);
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao atualizar cliente' });
+      return fail(res, error, 'Erro ao atualizar cliente');
     }
   },
 
@@ -61,7 +62,7 @@ export const ClienteController = {
       await ClienteModel.delete(id);
       return res.status(204).send();
     } catch (error) {
-      return res.status(500).json({ error: 'Erro ao deletar cliente' });
+      return fail(res, error, 'Erro ao deletar cliente');
     }
   },
 };

@@ -80,6 +80,8 @@
   --shadow-xs: 0 1px 2px rgba(10, 31, 68, 0.06);
   --shadow-sm: 0 1px 3px rgba(10, 31, 68, 0.10);
   --shadow-md: 0 4px 10px rgba(10, 31, 68, 0.12);
+  --shadow-lg: 0 16px 40px rgba(10, 31, 68, 0.18);
+  --shadow-glow: 0 6px 20px rgba(255, 193, 7, 0.35);
   --shadow-dark-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-dark-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
 
@@ -90,6 +92,23 @@
   --sidebar-width-collapsed: 56px;
   --header-height: 52px;
   --topbar-filters-height: 44px;
+
+  /* ── Shell (header/sidebar: navy nos dois temas) ── */
+  --shell-bg: linear-gradient(180deg, #0A1F44 0%, #0D2756 100%);
+  --shell-bg-solid: #0A1F44;
+  --shell-text: rgba(255, 255, 255, 0.85);
+  --shell-border: rgba(255, 255, 255, 0.1);
+  --gradient-brand: linear-gradient(135deg, #FFC107 0%, #FF9800 100%);
+  --gradient-page: radial-gradient(1200px 500px at 85% -10%, rgba(255, 193, 7, 0.10), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgba(44, 111, 204, 0.10), transparent 60%);
+  --focus-ring: 0 0 0 3px rgba(255, 193, 7, 0.40);
+  --overlay-bg: rgba(8, 16, 32, 0.55);
+
+  /* ── Motion ── */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 120ms;
+  --dur-base: 220ms;
+  --dur-slow: 400ms;
 
   /* ── Breakpoints (referência para media queries) ── */
   --bp-sm: 480px;

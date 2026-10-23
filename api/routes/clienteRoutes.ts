@@ -1,7 +1,9 @@
 import { Router } from 'express';
+import { validateId } from '../middleware/validate.js';
 import { ClienteController } from '../controllers/ClienteController.js';
 
 const clienteRoutes = Router();
+clienteRoutes.param('id', validateId);
 
 clienteRoutes.get('/', ClienteController.index);
 clienteRoutes.get('/:id', ClienteController.show);

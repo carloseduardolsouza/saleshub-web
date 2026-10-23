@@ -1,4 +1,4 @@
-import { type SelectHTMLAttributes, forwardRef } from 'react';
+import { type SelectHTMLAttributes, forwardRef, useId } from 'react';
 import './CustomSelect.css';
 
 interface SelectOption {
@@ -14,13 +14,18 @@ interface CustomSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export const CustomSelect = forwardRef<HTMLSelectElement, CustomSelectProps>(
-  ({ label, error, options, placeholder, className = '', ...props }, ref) => {
+  ({ label, error, options, placeholder, className = '', id, ...props }, ref) => {
+    const autoId = useId();
+    const selectId = id ?? autoId;
     return (
       <div className={`form-group ${error ? 'form-group--error' : ''}`}>
-        {label && <label className="form-label">{label}</label>}
+        {label && <label className="form-label" htmlFor={selectId}>{label}</label>}
         <select
           ref={ref}
+          id={selectId}
           className={`select ${error ? 'select--error' : ''} ${className}`}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${selectId}-error` : undefined}
           {...props}
         >
           {placeholder && (
@@ -34,7 +39,7 @@ export const CustomSelect = forwardRef<HTMLSelectElement, CustomSelectProps>(
             </option>
           ))}
         </select>
-        {error && <span className="form-error">{error}</span>}
+        {error && <span id={`${selectId}-error`} className="form-error" role="alert">{error}</span>}
       </div>
     );
   }

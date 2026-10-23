@@ -44,14 +44,15 @@ export const ProdutoModel = {
   },
 
   async update(id: number, data: ProdutoInput) {
+    return prisma.$transaction(async (tx) => {
     if (data.imagens) {
-      await prisma.produtoImagem.deleteMany({ where: { produtoId: id } });
+      await tx.produtoImagem.deleteMany({ where: { produtoId: id } });
     }
     if (data.variacoes) {
-      await prisma.produtoVariacao.deleteMany({ where: { produtoId: id } });
+      await tx.produtoVariacao.deleteMany({ where: { produtoId: id } });
     }
 
-    return prisma.produto.update({
+    return tx.produto.update({
       where: { id },
       data: {
         nome: data.nome,
@@ -68,11 +69,10 @@ export const ProdutoModel = {
       },
       include: { imagens: true, variacoes: true },
     });
+    });
   },
 
   async delete(id: number) {
-    await prisma.produtoImagem.deleteMany({ where: { produtoId: id } });
-    await prisma.produtoVariacao.deleteMany({ where: { produtoId: id } });
     return prisma.produto.delete({ where: { id } });
   },
 };
